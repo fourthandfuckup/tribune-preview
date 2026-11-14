@@ -8,7 +8,7 @@ form.addEventListener('submit',async e=>{
  submit.disabled=true;result.textContent='Sending your message…';
  const data={topic:document.getElementById('topic').value,name:document.getElementById('name').value,email:document.getElementById('email').value,subject:document.getElementById('subject').value,message:document.getElementById('message').value,fax_number:document.getElementById('fax_number').value,turnstile:token};
  try{
- const response=await fetch('https://nlckcelwfcoszbvqyeyr.supabase.co/functions/v1/tribune-newsroom',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ const response=await fetch('https://nlckcelwfcoszbvqyeyr.supabase.co/functions/v1/tribune-newsroom-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
  const payload=await response.json();
  if(!response.ok||!payload.ok)throw new Error(payload.error||'Message not sent.');
  result.textContent='Message received by the newsroom. Thank you!';form.reset();
