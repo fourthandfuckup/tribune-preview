@@ -1,15 +1,16 @@
 'use strict';
 const comics=window.TRIBUNE_COMICS||[];
+
 const root=document.getElementById('comicApp');
 const params=new URLSearchParams(location.search);
-const series=comics.find(s=>s.id===params.get('series'));
-const volume=Number(params.get('volume')||1);
 const archiveMode=params.get('view')==='archives';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const link=(id,v)=>'comics.html?series='+encodeURIComponent(id)+(v?'&volume='+v:'');
 const archiveLink='comics.html?view=archives';
 const home='<a class="comic-back" href="'+archiveLink+'">← Comic Archives</a>';
 const newest=s=>[...s.issues].sort((a,b)=>b.volume-a.volume)[0];
+async function loadPublished(){try{const response=await fetch('https://nlckcelwfcoszbvqyeyr.supabase.co/rest/v1/tribune_published_editions?select=id,edition_date,content,published_at&order=published_at.asc&limit=100',{headers:{apikey:'sb_publishable_CrRNQGAZoc6TtT3wFe3sUg_hoYuupy8'}});if(!response.ok)throw Error('Published comics unavailable');const editions=await response.json();for(const e of editions){for(const c of e.content?.comics||[]){let target=comics.find(s=>s.id===c.series);if(!target){target={id:c.series,title:c.series.replaceAll('-',' ').replace(/\\b\\w/g,m=>m.toUpperCase()),description:'Published Tribune comic series.',issues:[]};comics.push(target);}if(target.issues.some(i=>i.published_id===c.id))continue;target.issues.push({volume:target.issues.length+1,title:c.title,image:c.image_url,published_id:c.id});}}}catch(err){console.warn(err);}}
+async function render(){await loadPublished();const series=comics.find(s=>s.id===params.get('series'));const volume=Number(params.get('volume')||1);
 if(!series && archiveMode){
   root.innerHTML='<p class="comics-eyebrow">PERMANENT COLLECTIONS</p><h1 class="comics-title">COMIC ARCHIVES</h1><p class="comics-intro">Choose a series to browse every volume, beginning with Volume 1.</p><div class="comic-series-grid">'+comics.map(s=>'<article class="comic-series-card"><span class="kicker">COMIC SERIES · '+s.issues.length+' ISSUE'+(s.issues.length===1?'':'S')+'</span><h2>'+esc(s.title)+'</h2><p>'+esc(s.description)+'</p><a href="'+link(s.id,1)+'">START FROM VOLUME 1 →</a></article>').join('')+'</div><p><a class="comic-back" href="comics.html">← Read the latest comics</a></p>';
 }else if(!series){
@@ -22,3 +23,6 @@ if(!series && archiveMode){
     root.innerHTML=home+'<p class="comics-eyebrow">THE OBITUARY PAGES · PERMANENT ARCHIVE</p><h1 class="comics-title">'+esc(series.title)+'</h1><p class="comics-intro">VOLUME '+issue.volume+' · “'+esc(issue.title)+'”</p><section class="comic-reader"><figure><img src="'+esc(issue.image)+'" alt="'+esc(series.title)+' volume '+issue.volume+': '+esc(issue.title)+' — six-panel comic" loading="eager"><figcaption>Volume '+issue.volume+' · '+esc(issue.title)+'</figcaption></figure><nav class="comic-nav" aria-label="Comic issue navigation"><span>'+(prev?'<a href="'+link(series.id,prev.volume)+'">← Previous comic</a>':'Volume 1 · First issue')+'</span><span>'+(next?'<a href="'+link(series.id,next.volume)+'">Next comic →</a>':'Latest issue')+'</span></nav></section><h2>All volumes of '+esc(series.title)+'</h2><ol class="comic-issue-list">'+issues.map(i=>'<li><a href="'+link(series.id,i.volume)+'">Volume '+i.volume+': '+esc(i.title)+'</a>'+(i.volume===volume?' · Currently reading':'')+'</li>').join('')+'</ol>';
   }
 }
+
+}
+render().catch(e=>{root.textContent='Could not display the comic pages: '+e.message;});
