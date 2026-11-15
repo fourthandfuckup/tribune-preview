@@ -1,0 +1,218 @@
+{
+  "grid": [
+    "FLEX#SNAP#BENCH",
+    "#O##A###U#Y####",
+    "#M##U#SANDERS##",
+    "#B##D#T#T######",
+    "#A#RICE##MARINO",
+    "#R##B#E##O####N",
+    "#D##L#L##N#T##S",
+    "#INTERCEPTION#I",
+    "######U##A#U##D",
+    "HAILMARY#N#C##E",
+    "######T##A#H#P#",
+    "##M###A####B#P#",
+    "#DOLPHINS#FAVRE",
+    "##S###N####C###",
+    "##SACK##PICKSIX"
+  ],
+  "clues": [
+    {
+      "n": 1,
+      "answer": "FLEX",
+      "clue": "Fantasy lineup slot for multiple eligible positions",
+      "r": 0,
+      "c": 0,
+      "d": "A"
+    },
+    {
+      "n": 5,
+      "answer": "SNAP",
+      "clue": "Exchange that starts a football play",
+      "r": 0,
+      "c": 5,
+      "d": "A"
+    },
+    {
+      "n": 9,
+      "answer": "BENCH",
+      "clue": "Where fantasy points go to mock your lineup decisions",
+      "r": 0,
+      "c": 10,
+      "d": "A"
+    },
+    {
+      "n": 20,
+      "answer": "SANDERS",
+      "clue": "Barry, elusive Detroit running back",
+      "r": 2,
+      "c": 6,
+      "d": "A"
+    },
+    {
+      "n": 30,
+      "answer": "RICE",
+      "clue": "Jerry, the all-time receiving yards leader",
+      "r": 4,
+      "c": 3,
+      "d": "A"
+    },
+    {
+      "n": 32,
+      "answer": "MARINO",
+      "clue": "Dan, prolific Miami passer without a Super Bowl ring",
+      "r": 4,
+      "c": 9,
+      "d": "A"
+    },
+    {
+      "n": 49,
+      "answer": "INTERCEPTION",
+      "clue": "Defender’s catch of an opponent’s pass",
+      "r": 7,
+      "c": 1,
+      "d": "A"
+    },
+    {
+      "n": 62,
+      "answer": "HAILMARY",
+      "clue": "Desperation pass launched toward the end zone",
+      "r": 9,
+      "c": 0,
+      "d": "A"
+    },
+    {
+      "n": 80,
+      "answer": "DOLPHINS",
+      "clue": "Miami team that went undefeated in 1972",
+      "r": 12,
+      "c": 1,
+      "d": "A"
+    },
+    {
+      "n": 86,
+      "answer": "FAVRE",
+      "clue": "Brett, longtime Packers quarterback",
+      "r": 12,
+      "c": 10,
+      "d": "A"
+    },
+    {
+      "n": 92,
+      "answer": "SACK",
+      "clue": "Tackle of a quarterback behind the line of scrimmage",
+      "r": 14,
+      "c": 2,
+      "d": "A"
+    },
+    {
+      "n": 96,
+      "answer": "PICKSIX",
+      "clue": "Interception returned for a touchdown",
+      "r": 14,
+      "c": 8,
+      "d": "A"
+    },
+    {
+      "n": 2,
+      "answer": "LOMBARDI",
+      "clue": "Surname on the Super Bowl trophy",
+      "r": 0,
+      "c": 1,
+      "d": "D"
+    },
+    {
+      "n": 8,
+      "answer": "PUNT",
+      "clue": "Fourth-down kick to surrender possession",
+      "r": 0,
+      "c": 8,
+      "d": "D"
+    },
+    {
+      "n": 9,
+      "answer": "BYE",
+      "clue": "Week when a team has no game",
+      "r": 0,
+      "c": 10,
+      "d": "D"
+    },
+    {
+      "n": 15,
+      "answer": "AUDIBLE",
+      "clue": "Play changed at the line of scrimmage",
+      "r": 1,
+      "c": 4,
+      "d": "D"
+    },
+    {
+      "n": 20,
+      "answer": "STEELCURTAIN",
+      "clue": "Nickname for Pittsburgh’s feared 1970s defense",
+      "r": 2,
+      "c": 6,
+      "d": "D"
+    },
+    {
+      "n": 32,
+      "answer": "MONTANA",
+      "clue": "Joe who won four Super Bowls as a starting quarterback",
+      "r": 4,
+      "c": 9,
+      "d": "D"
+    },
+    {
+      "n": 37,
+      "answer": "ONSIDE",
+      "clue": "Type of kick used to try to regain possession",
+      "r": 4,
+      "c": 14,
+      "d": "D"
+    },
+    {
+      "n": 47,
+      "answer": "TOUCHBACK",
+      "clue": "Result that often places the ball at a designated yard line",
+      "r": 6,
+      "c": 11,
+      "d": "D"
+    },
+    {
+      "n": 75,
+      "answer": "PPR",
+      "clue": "Fantasy scoring format awarding points per reception",
+      "r": 10,
+      "c": 13,
+      "d": "D"
+    },
+    {
+      "n": 76,
+      "answer": "MOSS",
+      "clue": "Randy, receiver known for spectacular deep catches",
+      "r": 11,
+      "c": 2,
+      "d": "D"
+    }
+  ],
+  "starts": {
+    "0,0": 1,
+    "0,5": 5,
+    "0,10": 9,
+    "2,6": 20,
+    "4,3": 30,
+    "4,9": 32,
+    "7,1": 49,
+    "9,0": 62,
+    "12,1": 80,
+    "12,10": 86,
+    "14,2": 92,
+    "14,8": 96,
+    "0,1": 2,
+    "0,8": 8,
+    "1,4": 15,
+    "4,14": 37,
+    "6,11": 47,
+    "10,13": 75,
+    "11,2": 76
+  }
+}
