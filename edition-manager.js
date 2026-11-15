@@ -155,14 +155,19 @@ async function previewEdition(edition){
 
 async function publishPreview(e){
  if(!user)return;
- if(!confirm('Publish this edition to the PUBLIC PREVIEW ARCHIVE? Anyone with the preview-site link can read its articles and see their published images. The live fourthandfuckup.com site will NOT change. Continue?'))return;
+ if(!confirm('Publish this edition to the PUBLIC PREVIEW ARCHIVE? Anyone with the preview-site link can read its articles, comics and crossword. The live fourthandfuckup.com site will NOT change. Continue?'))return;
  const ids=[e.main_article_id,e.bulletin_left_id,e.bulletin_right_id].filter(Boolean);
  if(!ids.length)return msg('Select at least one article before publishing to the preview archive.');
  const {data,error}=await db.from('tribune_article_drafts').select('id,headline,author,summary,story,categories,image_path').in('id',ids);
  if(error)return msg('Publishing failed: '+error.message);
  for(const a of data||[]){if(!a.image_path)continue;const {data:file,error:downloadError}=await db.storage.from('tribune-draft-images').download(a.image_path);if(downloadError||!file)return msg('Publishing stopped: could not copy image for '+a.headline+'. '+(downloadError?.message||''));const extension=(a.image_path.split('.').pop()||'webp').toLowerCase();const safeExt=['jpg','jpeg','png','webp','gif'].includes(extension)?extension:'webp';const path=e.id+'/'+a.id+'.'+safeExt;const {error:uploadError}=await db.storage.from('tribune-published-images').upload(path,file,{upsert:true,contentType:file.type||'image/'+(safeExt==='jpg'?'jpeg':safeExt)});if(uploadError)return msg('Publishing stopped: could not publish image for '+a.headline+'. '+uploadError.message);a.preview_image_url=db.storage.from('tribune-published-images').getPublicUrl(path).data.publicUrl+'?v='+Date.now();delete a.image_path;}
+ const {data:comicLinks,error:comicLinkError}=await db.from('tribune_edition_comics').select('comic_id').eq('edition_id',e.id);if(comicLinkError)return msg('Publishing stopped: '+comicLinkError.message);
+ const comicIds=(comicLinks||[]).map(x=>x.comic_id);let publishedComics=[];
+ if(comicIds.length){const {data:comicRows,error:comicError}=await db.from('tribune_comic_drafts').select('id,series,title,image_path').in('id',comicIds);if(comicError)return msg('Publishing stopped: '+comicError.message);if((comicRows||[]).length!==comicIds.length)return msg('Publishing stopped: a selected comic could not be found.');for(const c of comicRows){const {data:file,error:downloadError}=await db.storage.from('tribune-comic-drafts').download(c.image_path);if(downloadError||!file)return msg('Publishing stopped: comic image unavailable: '+c.title+'. '+(downloadError?.message||''));const ext=(c.image_path.split('.').pop()||'png').toLowerCase();const safeExt=['png','jpg','jpeg','webp'].includes(ext)?ext:'png';const path='comics/'+c.id+'.'+safeExt;const {error:uploadError}=await db.storage.from('tribune-published-images').upload(path,file,{upsert:true,contentType:file.type||'image/png'});if(uploadError)return msg('Publishing stopped: comic image upload failed: '+uploadError.message);publishedComics.push({id:c.id,series:c.series,title:c.title,image_url:db.storage.from('tribune-published-images').getPublicUrl(path).data.publicUrl+'?v='+Date.now()});}}
+ let publishedCrossword=null;
+ if(e.crossword_draft_id){const {data:p,error:puzzleError}=await db.from('tribune_crossword_drafts').select('id,title,puzzle').eq('id',e.crossword_draft_id).single();if(puzzleError||!p)return msg('Publishing stopped: selected crossword could not be loaded. '+(puzzleError?.message||''));publishedCrossword={id:p.id,title:p.title,puzzle:p.puzzle};}
  const byId=new Map((data||[]).map(a=>[a.id,a]));
- const content={main:byId.get(e.main_article_id)||null,left:byId.get(e.bulletin_left_id)||null,right:byId.get(e.bulletin_right_id)||null};
+ const content={main:byId.get(e.main_article_id)||null,left:byId.get(e.bulletin_left_id)||null,right:byId.get(e.bulletin_right_id)||null,comics:publishedComics,crossword:publishedCrossword};
  if(!content.main)return msg('A main headline is required before publishing.');
  const {data:existing,error:lookupError}=await db.from('tribune_published_editions').select('id').eq('source_edition_id',e.id).maybeSingle();
  if(lookupError)return msg('Publishing failed: '+lookupError.message);
@@ -170,5 +175,5 @@ async function publishPreview(e){
  const row={source_edition_id:e.id,edition_date:e.edition_date,volume_number:e.volume_number,issue_number:e.issue_number,title:e.title,content,published_by:user.id,published_at:new Date().toISOString()};
  const result=existing?await db.from('tribune_published_editions').update(row).eq('id',existing.id):await db.from('tribune_published_editions').insert(row);
  if(result.error)return msg('Publishing failed: '+result.error.message);
- msg('Published to the PREVIEW HOMEPAGE with article images. Older editions remain in the preview archive. Live newspaper unchanged.');
+ msg('Published articles, '+publishedComics.length+' comic(s), and '+(publishedCrossword?'a crossword':'no crossword')+' to the PREVIEW ONLY. Live newspaper unchanged.');
 }
