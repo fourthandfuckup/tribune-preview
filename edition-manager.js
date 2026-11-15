@@ -1,15 +1,15 @@
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const db=createClient('https://nlckcelwfcoszbvqyeyr.supabase.co','sb_publishable_CrRNQGAZoc6TtT3wFe3sUg_hoYuupy8');
-const $=id=>document.getElementById(id);let user=null,current=null,articles=[],editions=[],comics=[];
+const $=id=>document.getElementById(id);let user=null,current=null,articles=[],editions=[],comics=[],puzzles=[];
 function roman(n){let s='';for(const [v,t] of [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']])while(n>=v){s+=t;n-=v;}return s;}
 function proof(){let d=$('date').value;let date=d?new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}).toUpperCase():'CHOOSE PUBLICATION DATE';$('masthead-proof').textContent='VOL. '+roman(Number($('volume').value)||1)+' · NO. '+String(Number($('issue').value)||1).padStart(3,'0')+' — '+date;}
 function msg(t){$('status').textContent=t;}
 async function articlesLoad(){let {data,error}=await db.from('tribune_article_drafts').select('id,headline').order('updated_at',{ascending:false});if(error){msg('Could not load articles: '+error.message);return;}articles=data||[];for(let key of ['main','left','right']){let select=$(key),previous=select.value;select.replaceChildren(new Option('— None —',''));for(let a of articles)select.add(new Option(a.headline||'Untitled article',a.id));select.value=articles.some(a=>a.id===previous)?previous:'';}}
-function clear(){current=null;$('title').value='New Edition';$('volume').value=1;$('issue').value=2;$('date').value='';$('comics').value='';$('crossword').value='';for(let k of ['main','left','right'])$(k).value='';document.querySelectorAll('.comic-check').forEach(c=>c.checked=false);proof();msg('New unsaved edition.');}
-async function openEdition(e){current=e.id;$('title').value=e.title;$('volume').value=e.volume_number;$('issue').value=e.issue_number;$('date').value=e.edition_date;$('main').value=e.main_article_id||'';$('left').value=e.bulletin_left_id||'';$('right').value=e.bulletin_right_id||'';$('comics').value=e.comics_notes||'';$('crossword').value=e.crossword_notes||'';await loadEditionComics(e.id);proof();msg('Opened saved edition.');scrollTo({top:0,behavior:'smooth'});}
+function clear(){current=null;$('title').value='New Edition';$('volume').value=1;$('issue').value=2;$('date').value='';$('comics').value='';$('crossword').value='';for(let k of ['main','left','right'])$(k).value='';document.querySelectorAll('.comic-check').forEach(c=>c.checked=false);$('puzzle-select').value='';proof();msg('New unsaved edition.');}
+async function openEdition(e){current=e.id;$('title').value=e.title;$('volume').value=e.volume_number;$('issue').value=e.issue_number;$('date').value=e.edition_date;$('main').value=e.main_article_id||'';$('left').value=e.bulletin_left_id||'';$('right').value=e.bulletin_right_id||'';$('comics').value=e.comics_notes||'';$('crossword').value=e.crossword_notes||'';$('puzzle-select').value=e.crossword_draft_id||'';await loadEditionComics(e.id);proof();msg('Opened saved edition.');scrollTo({top:0,behavior:'smooth'});}
 async function editionsLoad(){let {data,error}=await db.from('tribune_editions').select('*').order('updated_at',{ascending:false});if(error){msg('Could not load editions: '+error.message);return;}editions=data||[];let root=$('saved');root.replaceChildren();if(!editions.length){root.textContent='No saved editions yet.';return;}for(let e of editions){let wrap=document.createElement('div');wrap.className='saved';let title=document.createElement('strong');title.textContent='VOL. '+roman(e.volume_number)+' · NO. '+String(e.issue_number).padStart(3,'0')+' — '+e.title;let info=document.createElement('p');info.textContent=e.edition_date+' · PRIVATE DRAFT';let open=document.createElement('button');open.textContent='OPEN';open.onclick=()=>openEdition(e);let del=document.createElement('button');del.textContent='DELETE';del.onclick=async()=>{if(!confirm('Delete this private edition draft?'))return;let {error}=await db.from('tribune_editions').delete().eq('id',e.id).eq('editor_id',user.id);if(error)return msg(error.message);if(current===e.id)clear();await editionsLoad();msg('Edition deleted.');};wrap.append(title,info,open,del);root.append(wrap);}}
-async function save(){if(!user)return msg('Sign in first.');if(!$('date').value)return msg('Choose a publication date.');let ids=['main','left','right'].map(k=>$(k).value).filter(Boolean);if(new Set(ids).size!==ids.length)return msg('Choose a different article for each front-page position.');let v=Number($('volume').value),n=Number($('issue').value);if(!Number.isInteger(v)||v<1||v>999||!Number.isInteger(n)||n<1||n>9999)return msg('Enter a valid volume and issue number.');let row={editor_id:user.id,title:$('title').value.trim(),edition_date:$('date').value,volume_number:v,issue_number:n,main_article_id:$('main').value||null,bulletin_left_id:$('left').value||null,bulletin_right_id:$('right').value||null,comics_notes:$('comics').value,crossword_notes:$('crossword').value,updated_at:new Date().toISOString()};$('save').disabled=true;let result=current?await db.from('tribune_editions').update(row).eq('id',current).eq('editor_id',user.id).select().single():await db.from('tribune_editions').insert(row).select().single();$('save').disabled=false;if(result.error)return msg('Save failed: '+result.error.message);current=result.data.id;const assignmentError=await saveEditionComics(current);await editionsLoad();msg(assignmentError?'Edition saved, but comic assignment failed: '+assignmentError:'Edition and selected comics saved privately. Nothing has been published.');}
-async function auth(){const {data:{user:u},error}=await db.auth.getUser();user=error?null:u;if(user){let {data:editor,error:ee}=await db.from('tribune_editors').select('user_id').eq('user_id',user.id).maybeSingle();if(ee||!editor){await db.auth.signOut();user=null;}}$('workspace').hidden=!user;$('auth-form').hidden=!!user;$('signout').hidden=!user;$('auth-message').textContent=user?'Signed in as '+user.email:'Sign in with your authorised Tribune email.';if(user){await articlesLoad();await editionsLoad();await loadComics();}}
+async function save(){if(!user)return msg('Sign in first.');if(!$('date').value)return msg('Choose a publication date.');let ids=['main','left','right'].map(k=>$(k).value).filter(Boolean);if(new Set(ids).size!==ids.length)return msg('Choose a different article for each front-page position.');let v=Number($('volume').value),n=Number($('issue').value);if(!Number.isInteger(v)||v<1||v>999||!Number.isInteger(n)||n<1||n>9999)return msg('Enter a valid volume and issue number.');let row={editor_id:user.id,title:$('title').value.trim(),edition_date:$('date').value,volume_number:v,issue_number:n,main_article_id:$('main').value||null,bulletin_left_id:$('left').value||null,bulletin_right_id:$('right').value||null,comics_notes:$('comics').value,crossword_notes:$('crossword').value,crossword_draft_id:$('puzzle-select').value||null,updated_at:new Date().toISOString()};$('save').disabled=true;let result=current?await db.from('tribune_editions').update(row).eq('id',current).eq('editor_id',user.id).select().single():await db.from('tribune_editions').insert(row).select().single();$('save').disabled=false;if(result.error)return msg('Save failed: '+result.error.message);current=result.data.id;const assignmentError=await saveEditionComics(current);await editionsLoad();msg(assignmentError?'Edition saved, but comic assignment failed: '+assignmentError:'Edition and selected comics saved privately. Nothing has been published.');}
+async function auth(){const {data:{user:u},error}=await db.auth.getUser();user=error?null:u;if(user){let {data:editor,error:ee}=await db.from('tribune_editors').select('user_id').eq('user_id',user.id).maybeSingle();if(ee||!editor){await db.auth.signOut();user=null;}}$('workspace').hidden=!user;$('auth-form').hidden=!!user;$('signout').hidden=!user;$('auth-message').textContent=user?'Signed in as '+user.email:'Sign in with your authorised Tribune email.';if(user){await articlesLoad();await editionsLoad();await loadComics();await loadPuzzles();}}
 $('signin').onclick=async()=>{let email=$('email').value.trim();if(!email)return;$('auth-message').textContent='Sending link…';let {error}=await db.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+location.pathname}});$('auth-message').textContent=error?'Sign-in failed: '+error.message:'Check your email for the secure sign-in link.';};
 $('signout').onclick=async()=>{await db.auth.signOut();user=null;await auth();};
 $('save').onclick=save;$('new').onclick=clear;$('refresh-articles').onclick=articlesLoad;for(let id of ['volume','issue','date'])$(id).addEventListener('input',proof);proof();auth();
@@ -59,4 +59,49 @@ $('upload-comic').onclick=async()=>{
  const {error}=await db.from('tribune_comic_drafts').insert({editor_id:user.id,series,title,image_path:path});
  if(error){await db.storage.from(comicBucket).remove([path]);button.disabled=false;$('comic-status').textContent=error.message;return;}
  $('comic-title').value='';$('comic-file').value='';await loadComics();button.disabled=false;$('comic-status').textContent='Comic uploaded privately. Tick it for this edition and save the edition.';
+};
+
+function validatePuzzle(p){
+ if(!p||!Array.isArray(p.grid)||p.grid.length<3||p.grid.length>25||!Array.isArray(p.clues))throw new Error('Expected grid and clues arrays.');
+ const n=p.grid.length;if(p.grid.some(row=>typeof row!=='string'||row.length!==n||!/^[A-Z#]+$/.test(row)))throw new Error('Grid must be square (3–25), using uppercase letters and # for blocks.');
+ if(!p.clues.length)throw new Error('Add at least one clue.');
+ for(const q of p.clues){
+  if(!Number.isInteger(q.n)||!Number.isInteger(q.r)||!Number.isInteger(q.c)||!['A','D'].includes(q.d)||typeof q.clue!=='string'||!q.clue.trim()||typeof q.answer!=='string'||!/^[A-Z]+$/.test(q.answer))throw new Error('Each clue needs n, r, c, d, clue and uppercase answer.');
+  for(let i=0;i<q.answer.length;i++){const r=q.r+(q.d==='D'?i:0),c=q.c+(q.d==='A'?i:0);if(r<0||c<0||r>=n||c>=n||p.grid[r][c]!==q.answer[i])throw new Error('Clue '+q.n+' does not match the answer grid.');}
+ }
+ return p;
+}
+async function loadPuzzles(){
+ const {data,error}=await db.from('tribune_crossword_drafts').select('id,title,puzzle').order('created_at',{ascending:false});
+ if(error){$('puzzle-status').textContent='Could not load puzzles: '+error.message;return;}
+ puzzles=data||[];const select=$('puzzle-select'),old=select.value;select.replaceChildren(new Option('— None —',''));for(const p of puzzles)select.add(new Option(p.title,p.id));select.value=puzzles.some(p=>p.id===old)?old:'';
+ if(current){const e=editions.find(e=>e.id===current);if(e)select.value=e.crossword_draft_id||'';}
+}
+async function addPuzzle(title,puzzle){
+ const {error}=await db.from('tribune_crossword_drafts').insert({editor_id:user.id,title,puzzle:validatePuzzle(puzzle)});
+ if(error)throw error;await loadPuzzles();$('puzzle-status').textContent='Crossword saved privately. Select it for your edition and save the edition.';
+}
+$('import-crossword').onclick=async()=>{
+ if(!user)return;const button=$('import-crossword');button.disabled=true;
+ try{const {data:existing,error}=await db.from('tribune_crossword_drafts').select('id').eq('title','Fourth & Long').maybeSingle();if(error)throw error;if(existing){await loadPuzzles();$('puzzle-select').value=existing.id;$('puzzle-status').textContent='Existing Fourth & Long crossword selected.';return;}
+ const response=await fetch('imports/fourth-and-long-crossword.json',{cache:'no-store'});if(!response.ok)throw new Error('Original crossword could not be loaded.');await addPuzzle('Fourth & Long',await response.json());
+ const p=puzzles.find(p=>p.title==='Fourth & Long');if(p)$('puzzle-select').value=p.id;
+ }catch(e){$('puzzle-status').textContent='Import failed: '+e.message;}finally{button.disabled=false;}
+};
+$('upload-crossword').onclick=async()=>{
+ if(!user)return;const file=$('puzzle-file').files[0],title=$('puzzle-title').value.trim();if(!file||!title){$('puzzle-status').textContent='Enter a title and select a JSON file.';return;}
+ if(file.size>100000){$('puzzle-status').textContent='JSON file must be under 100 KB.';return;}
+ try{const data=JSON.parse(await file.text());await addPuzzle(title,data);$('puzzle-title').value='';$('puzzle-file').value='';}catch(e){$('puzzle-status').textContent='Import failed: '+e.message;}
+};
+$('preview-crossword').onclick=async()=>{
+ const p=puzzles.find(p=>p.id===$('puzzle-select').value);if(!p){$('puzzle-status').textContent='Select a crossword first.';return;}
+ try{
+ const response=await fetch('crossword-1.html.html',{cache:'no-store'});if(!response.ok)throw new Error('Could not load crossword player.');
+ let html=await response.text();const start=html.indexOf('const DATA='),end=html.indexOf(';',start);
+ if(start<0||end<0)throw new Error('Crossword player format changed.');
+ html=html.slice(0,start)+'const DATA='+JSON.stringify(p.puzzle)+html.slice(end);
+ html=html.replaceAll('Fourth & Long',p.title.replaceAll('&','&amp;').replaceAll('<','&lt;')).replaceAll('Crossword No. 1','Crossword Preview');
+ const blob=new Blob([html],{type:'text/html'}),url=URL.createObjectURL(blob);const windowRef=window.open(url,'_blank','noopener');if(!windowRef)$('puzzle-status').textContent='Allow popups to open the private crossword preview.';
+ setTimeout(()=>URL.revokeObjectURL(url),120000);
+ }catch(e){$('puzzle-status').textContent=e.message;}
 };
