@@ -7,7 +7,7 @@ function msg(t){$('status').textContent=t;}
 async function articlesLoad(){let {data,error}=await db.from('tribune_article_drafts').select('id,headline').order('updated_at',{ascending:false});if(error){msg('Could not load articles: '+error.message);return;}articles=data||[];for(let key of ['main','left','right']){let select=$(key),previous=select.value;select.replaceChildren(new Option('— None —',''));for(let a of articles)select.add(new Option(a.headline||'Untitled article',a.id));select.value=articles.some(a=>a.id===previous)?previous:'';}}
 function clear(){current=null;$('title').value='New Edition';$('volume').value=1;$('issue').value=2;$('date').value='';$('comics').value='';$('crossword').value='';for(let k of ['main','left','right'])$(k).value='';document.querySelectorAll('.comic-check').forEach(c=>c.checked=false);$('puzzle-select').value='';proof();msg('New unsaved edition.');}
 async function openEdition(e){current=e.id;$('title').value=e.title;$('volume').value=e.volume_number;$('issue').value=e.issue_number;$('date').value=e.edition_date;$('main').value=e.main_article_id||'';$('left').value=e.bulletin_left_id||'';$('right').value=e.bulletin_right_id||'';$('comics').value=e.comics_notes||'';$('crossword').value=e.crossword_notes||'';$('puzzle-select').value=e.crossword_draft_id||'';await loadEditionComics(e.id);proof();msg('Opened saved edition.');scrollTo({top:0,behavior:'smooth'});}
-async function editionsLoad(){let {data,error}=await db.from('tribune_editions').select('*').order('updated_at',{ascending:false});if(error){msg('Could not load editions: '+error.message);return;}editions=data||[];let root=$('saved');root.replaceChildren();if(!editions.length){root.textContent='No saved editions yet.';return;}for(let e of editions){let wrap=document.createElement('div');wrap.className='saved';let title=document.createElement('strong');title.textContent='VOL. '+roman(e.volume_number)+' · NO. '+String(e.issue_number).padStart(3,'0')+' — '+e.title;let info=document.createElement('p');info.textContent=e.edition_date+' · PRIVATE DRAFT';let open=document.createElement('button');open.textContent='OPEN';open.onclick=()=>openEdition(e);let del=document.createElement('button');del.textContent='DELETE';del.onclick=async()=>{if(!confirm('Delete this private edition draft?'))return;let {error}=await db.from('tribune_editions').delete().eq('id',e.id).eq('editor_id',user.id);if(error)return msg(error.message);if(current===e.id)clear();await editionsLoad();msg('Edition deleted.');};wrap.append(title,info,open,del);root.append(wrap);}}
+async function editionsLoad(){let {data,error}=await db.from('tribune_editions').select('*').order('updated_at',{ascending:false});if(error){msg('Could not load editions: '+error.message);return;}editions=data||[];let root=$('saved');root.replaceChildren();if(!editions.length){root.textContent='No saved editions yet.';return;}for(let e of editions){let wrap=document.createElement('div');wrap.className='saved';let title=document.createElement('strong');title.textContent='VOL. '+roman(e.volume_number)+' · NO. '+String(e.issue_number).padStart(3,'0')+' — '+e.title;let info=document.createElement('p');info.textContent=e.edition_date+' · PRIVATE DRAFT';let open=document.createElement('button');open.textContent='OPEN';open.onclick=()=>openEdition(e);let previewButton=document.createElement('button');previewButton.textContent='PREVIEW';previewButton.onclick=()=>previewEdition(e);let del=document.createElement('button');del.textContent='DELETE';del.onclick=async()=>{if(!confirm('Delete this private edition draft?'))return;let {error}=await db.from('tribune_editions').delete().eq('id',e.id).eq('editor_id',user.id);if(error)return msg(error.message);if(current===e.id)clear();await editionsLoad();msg('Edition deleted.');};wrap.append(title,info,open,previewButton,del);root.append(wrap);}}
 async function save(){if(!user)return msg('Sign in first.');if(!$('date').value)return msg('Choose a publication date.');let ids=['main','left','right'].map(k=>$(k).value).filter(Boolean);if(new Set(ids).size!==ids.length)return msg('Choose a different article for each front-page position.');let v=Number($('volume').value),n=Number($('issue').value);if(!Number.isInteger(v)||v<1||v>999||!Number.isInteger(n)||n<1||n>9999)return msg('Enter a valid volume and issue number.');let row={editor_id:user.id,title:$('title').value.trim(),edition_date:$('date').value,volume_number:v,issue_number:n,main_article_id:$('main').value||null,bulletin_left_id:$('left').value||null,bulletin_right_id:$('right').value||null,comics_notes:$('comics').value,crossword_notes:$('crossword').value,crossword_draft_id:$('puzzle-select').value||null,updated_at:new Date().toISOString()};$('save').disabled=true;let result=current?await db.from('tribune_editions').update(row).eq('id',current).eq('editor_id',user.id).select().single():await db.from('tribune_editions').insert(row).select().single();$('save').disabled=false;if(result.error)return msg('Save failed: '+result.error.message);current=result.data.id;const assignmentError=await saveEditionComics(current);await editionsLoad();msg(assignmentError?'Edition saved, but comic assignment failed: '+assignmentError:'Edition and selected comics saved privately. Nothing has been published.');}
 async function auth(){const {data:{user:u},error}=await db.auth.getUser();user=error?null:u;if(user){let {data:editor,error:ee}=await db.from('tribune_editors').select('user_id').eq('user_id',user.id).maybeSingle();if(ee||!editor){await db.auth.signOut();user=null;}}$('workspace').hidden=!user;$('auth-form').hidden=!!user;$('signout').hidden=!user;$('auth-message').textContent=user?'Signed in as '+user.email:'Sign in with your authorised Tribune email.';if(user){await articlesLoad();await editionsLoad();await loadComics();await loadPuzzles();}}
 $('signin').onclick=async()=>{let email=$('email').value.trim();if(!email)return;$('auth-message').textContent='Sending link…';let {error}=await db.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+location.pathname}});$('auth-message').textContent=error?'Sign-in failed: '+error.message:'Check your email for the secure sign-in link.';};
@@ -105,3 +105,45 @@ $('preview-crossword').onclick=async()=>{
  setTimeout(()=>URL.revokeObjectURL(url),120000);
  }catch(e){$('puzzle-status').textContent=e.message;}
 };
+
+$('close-proof').onclick=()=>{$('edition-proof').hidden=true;};
+async function previewEdition(edition){
+ const root=$('proof-content'),shell=$('edition-proof');root.replaceChildren();shell.hidden=false;
+ $('proof-meta').textContent='VOL. '+roman(edition.volume_number)+' · NO. '+String(edition.issue_number).padStart(3,'0')+' · '+new Date(edition.edition_date+'T12:00:00').toLocaleDateString('en-US',{dateStyle:'full'}).toUpperCase();
+ const status=document.createElement('p');status.textContent='Assembling private proof…';root.append(status);
+ const ids=[edition.main_article_id,edition.bulletin_left_id,edition.bulletin_right_id].filter(Boolean);
+ const [articleResult,comicLinks]=await Promise.all([
+  ids.length?db.from('tribune_article_drafts').select('id,headline,author,summary,story,categories,image_path').in('id',ids):Promise.resolve({data:[],error:null}),
+  db.from('tribune_edition_comics').select('comic_id').eq('edition_id',edition.id)
+ ]);
+ root.replaceChildren();
+ if(articleResult.error||comicLinks.error){const err=document.createElement('p');err.textContent='Could not assemble proof: '+(articleResult.error||comicLinks.error).message;root.append(err);return;}
+ const articleMap=new Map((articleResult.data||[]).map(a=>[a.id,a]));
+ async function addArticle(id,label){
+  const a=articleMap.get(id);if(!a)return;
+  const section=document.createElement('section');section.style.cssText='padding:20px 0;border-bottom:2px solid #6b5940';
+  const kicker=document.createElement('p');kicker.textContent=label+' · '+(a.categories||[]).join(' / ');kicker.style.cssText='font-weight:bold;letter-spacing:.1em;font-size:12px';
+  const title=document.createElement('h2');title.textContent=a.headline;title.style.cssText='font-family:Georgia,serif;font-size:clamp(24px,4vw,36px);margin:8px 0';
+  const byline=document.createElement('p');byline.textContent='By '+(a.author||'Tribune Staff');byline.style.fontStyle='italic';
+  const summary=document.createElement('p');summary.textContent=a.summary||'';summary.style.fontWeight='bold';
+  section.append(kicker,title,byline,summary);
+  if(a.image_path){const {data}=await db.storage.from('tribune-draft-images').createSignedUrl(a.image_path,120);if(data){const img=document.createElement('img');img.src=data.signedUrl;img.alt='Article image';img.style.cssText='max-width:100%;max-height:420px;object-fit:contain;display:block;margin:15px auto';section.append(img);}}
+  const body=document.createElement('div');body.style.whiteSpace='pre-line';body.textContent=a.story||'';section.append(body);root.append(section);
+ }
+ await addArticle(edition.main_article_id,'MAIN HEADLINE');
+ await addArticle(edition.bulletin_left_id,'BENCHWARMER BULLETIN · LEFT');
+ await addArticle(edition.bulletin_right_id,'BENCHWARMER BULLETIN · RIGHT');
+ if(!ids.length){const p=document.createElement('p');p.textContent='No front-page articles selected yet.';root.append(p);}
+ const comicIds=(comicLinks.data||[]).map(x=>x.comic_id);
+ if(comicIds.length){
+  const heading=document.createElement('h2');heading.textContent='THE OBITUARY PAGES · COMICS';root.append(heading);
+  for(const id of comicIds){const c=comics.find(x=>x.id===id);if(!c)continue;const title=document.createElement('h3');title.textContent=c.title;root.append(title);
+   const {data}=await db.storage.from(comicBucket).createSignedUrl(c.image_path,120);
+   if(data){const img=document.createElement('img');img.src=data.signedUrl;img.alt=c.title;img.style.cssText='width:100%;height:auto;margin:10px 0';root.append(img);}
+  }
+ }
+ if(edition.crossword_draft_id){const p=puzzles.find(x=>x.id===edition.crossword_draft_id);if(p){const heading=document.createElement('h2');heading.textContent='THE SUNDAY HUDDLE · '+p.title;root.append(heading);const note=document.createElement('p');note.textContent='Playable crossword assigned. Open this edition in the manager and click PLAY PRIVATE PREVIEW to test the puzzle.';root.append(note);}}
+ if(edition.comics_notes||edition.crossword_notes){const p=document.createElement('p');p.textContent=[edition.comics_notes,edition.crossword_notes].filter(Boolean).join(' · ');root.append(p);}
+ const foot=document.createElement('p');foot.textContent='END OF PRIVATE PROOF · THE LIVE TRIBUNE IS UNCHANGED';foot.style.cssText='text-align:center;border-top:3px double #473b2c;padding:20px';root.append(foot);
+ shell.scrollIntoView({behavior:'smooth',block:'start'});
+}
