@@ -155,11 +155,12 @@ async function previewEdition(edition){
 
 async function publishPreview(e){
  if(!user)return;
- if(!confirm('Publish this edition to the PUBLIC PREVIEW ARCHIVE? Anyone with the preview-site link can read its article text. The live fourthandfuckup.com site will NOT change. Continue?'))return;
+ if(!confirm('Publish this edition to the PUBLIC PREVIEW ARCHIVE? Anyone with the preview-site link can read its articles and see their published images. The live fourthandfuckup.com site will NOT change. Continue?'))return;
  const ids=[e.main_article_id,e.bulletin_left_id,e.bulletin_right_id].filter(Boolean);
  if(!ids.length)return msg('Select at least one article before publishing to the preview archive.');
- const {data,error}=await db.from('tribune_article_drafts').select('id,headline,author,summary,story,categories').in('id',ids);
+ const {data,error}=await db.from('tribune_article_drafts').select('id,headline,author,summary,story,categories,image_path').in('id',ids);
  if(error)return msg('Publishing failed: '+error.message);
+ for(const a of data||[]){if(!a.image_path)continue;const {data:file,error:downloadError}=await db.storage.from('tribune-draft-images').download(a.image_path);if(downloadError||!file)return msg('Publishing stopped: could not copy image for '+a.headline+'. '+(downloadError?.message||''));const extension=(a.image_path.split('.').pop()||'webp').toLowerCase();const safeExt=['jpg','jpeg','png','webp','gif'].includes(extension)?extension:'webp';const path=e.id+'/'+a.id+'.'+safeExt;const {error:uploadError}=await db.storage.from('tribune-published-images').upload(path,file,{upsert:true,contentType:file.type||'image/'+(safeExt==='jpg'?'jpeg':safeExt)});if(uploadError)return msg('Publishing stopped: could not publish image for '+a.headline+'. '+uploadError.message);a.preview_image_url=db.storage.from('tribune-published-images').getPublicUrl(path).data.publicUrl+'?v='+Date.now();delete a.image_path;}
  const byId=new Map((data||[]).map(a=>[a.id,a]));
  const content={main:byId.get(e.main_article_id)||null,left:byId.get(e.bulletin_left_id)||null,right:byId.get(e.bulletin_right_id)||null};
  if(!content.main)return msg('A main headline is required before publishing.');
@@ -169,5 +170,5 @@ async function publishPreview(e){
  const row={source_edition_id:e.id,edition_date:e.edition_date,volume_number:e.volume_number,issue_number:e.issue_number,title:e.title,content,published_by:user.id,published_at:new Date().toISOString()};
  const result=existing?await db.from('tribune_published_editions').update(row).eq('id',existing.id):await db.from('tribune_published_editions').insert(row);
  if(result.error)return msg('Publishing failed: '+result.error.message);
- msg('Published to PREVIEW ARCHIVE only. Live newspaper unchanged. Open preview-editions.html to verify.');
+ msg('Published to the PREVIEW HOMEPAGE with article images. Older editions remain in the preview archive. Live newspaper unchanged.');
 }
