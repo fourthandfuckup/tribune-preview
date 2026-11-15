@@ -101,7 +101,7 @@ $('preview-crossword').onclick=async()=>{
  if(start<0||end<0)throw new Error('Crossword player format changed.');
  html=html.slice(0,start)+'const DATA='+JSON.stringify(p.puzzle)+html.slice(end);
  html=html.replaceAll('Fourth & Long',p.title.replaceAll('&','&amp;').replaceAll('<','&lt;')).replaceAll('Crossword No. 1','Crossword Preview');
- const blob=new Blob([html],{type:'text/html'}),url=URL.createObjectURL(blob);const windowRef=window.open(url,'_blank','noopener');if(!windowRef)$('puzzle-status').textContent='Allow popups to open the private crossword preview.';
+ const blob=new Blob([html],{type:'text/html'}),url=URL.createObjectURL(blob);window.open(url,'_blank');
  setTimeout(()=>URL.revokeObjectURL(url),120000);
  }catch(e){$('puzzle-status').textContent=e.message;}
 };
