@@ -17,19 +17,19 @@ const comicBucket='tribune-comic-drafts';
 async function loadComics(){
  const {data,error}=await db.from('tribune_comic_drafts').select('id,series,title,image_path').order('created_at',{ascending:false});
  if(error){$('comic-status').textContent='Could not load comics: '+error.message;return;}
- comics=data||[];const root=$('comic-library');root.replaceChildren();
+ const selectedBefore=new Set([...document.querySelectorAll('.comic-check:checked')].map(c=>c.value));comics=data||[];const root=$('comic-library');root.replaceChildren();
  if(!comics.length){root.textContent='No uploaded comics yet.';return;}
  for(const c of comics){
   const row=document.createElement('div');row.style.cssText='border-bottom:1px solid #8b7c63;padding:8px 0';
   const label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:8px';
-  const cb=document.createElement('input');cb.type='checkbox';cb.className='comic-check';cb.value=c.id;cb.style.width='auto';
+  const cb=document.createElement('input');cb.type='checkbox';cb.className='comic-check';cb.value=c.id;cb.checked=selectedBefore.has(c.id);cb.style.width='auto';
   const name=document.createElement('span');name.textContent=c.title+' · '+c.series.replaceAll('-',' ');
   label.append(cb,name);
   const view=document.createElement('button');view.textContent='VIEW';view.type='button';
   view.onclick=async()=>{const {data,error}=await db.storage.from(comicBucket).createSignedUrl(c.image_path,60);if(error)$('comic-status').textContent=error.message;else window.open(data.signedUrl,'_blank','noopener');};
   row.append(label,view);root.append(row);
  }
- if(current)await loadEditionComics(current);
+ if(current&&selectedBefore.size===0)await loadEditionComics(current);
 }
 async function loadEditionComics(id){
  document.querySelectorAll('.comic-check').forEach(c=>c.checked=false);
@@ -56,9 +56,9 @@ $('upload-comic').onclick=async()=>{
  const path=user.id+'/'+crypto.randomUUID()+'.'+ext;
  const {error:uploadError}=await db.storage.from(comicBucket).upload(path,file,{contentType:file.type,upsert:false});
  if(uploadError){button.disabled=false;$('comic-status').textContent=uploadError.message;return;}
- const {error}=await db.from('tribune_comic_drafts').insert({editor_id:user.id,series,title,image_path:path});
+ const {data:inserted,error}=await db.from('tribune_comic_drafts').insert({editor_id:user.id,series,title,image_path:path}).select('id').single();
  if(error){await db.storage.from(comicBucket).remove([path]);button.disabled=false;$('comic-status').textContent=error.message;return;}
- $('comic-title').value='';$('comic-file').value='';await loadComics();button.disabled=false;$('comic-status').textContent='Comic uploaded privately. Tick it for this edition and save the edition.';
+ $('comic-title').value='';$('comic-file').value='';await loadComics();const newCheckbox=[...document.querySelectorAll('.comic-check')].find(c=>c.value===inserted.id);if(newCheckbox)newCheckbox.checked=true;button.disabled=false;$('comic-status').textContent='Comic uploaded and selected. You can upload more strips; all checked comics will be saved to this edition.';
 };
 
 function validatePuzzle(p){
