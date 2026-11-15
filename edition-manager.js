@@ -145,5 +145,9 @@ async function previewEdition(edition){
  if(edition.crossword_draft_id){const p=puzzles.find(x=>x.id===edition.crossword_draft_id);if(p){const heading=document.createElement('h2');heading.textContent='THE SUNDAY HUDDLE · '+p.title;root.append(heading);const note=document.createElement('p');note.textContent='Playable crossword assigned. Open this edition in the manager and click PLAY PRIVATE PREVIEW to test the puzzle.';root.append(note);}}
  if(edition.comics_notes||edition.crossword_notes){const p=document.createElement('p');p.textContent=[edition.comics_notes,edition.crossword_notes].filter(Boolean).join(' · ');root.append(p);}
  const foot=document.createElement('p');foot.textContent='END OF PRIVATE PROOF · THE LIVE TRIBUNE IS UNCHANGED';foot.style.cssText='text-align:center;border-top:3px double #473b2c;padding:20px';root.append(foot);
+ const articleFor=id=>articleMap.get(id)||null;
+ const lead=articleFor(edition.main_article_id),left=articleFor(edition.bulletin_left_id),right=articleFor(edition.bulletin_right_id);
+ const payload={volume:edition.volume_number,issue:edition.issue_number,date:edition.edition_date,main:lead,left,right};
+ try{sessionStorage.setItem('tribune_editor_front_proof',JSON.stringify(payload));$('real-front-proof').src='index.html?editor-proof=1&proof-version='+Date.now();}catch(e){const warning=document.createElement('p');warning.textContent='Full front-page preview unavailable: '+e.message;root.append(warning);}
  shell.scrollIntoView({behavior:'smooth',block:'start'});
 }
