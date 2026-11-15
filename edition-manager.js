@@ -147,7 +147,8 @@ async function previewEdition(edition){
  const foot=document.createElement('p');foot.textContent='END OF PRIVATE PROOF · THE LIVE TRIBUNE IS UNCHANGED';foot.style.cssText='text-align:center;border-top:3px double #473b2c;padding:20px';root.append(foot);
  const articleFor=id=>articleMap.get(id)||null;
  const lead=articleFor(edition.main_article_id),left=articleFor(edition.bulletin_left_id),right=articleFor(edition.bulletin_right_id);
- const payload={volume:edition.volume_number,issue:edition.issue_number,date:edition.edition_date,main:lead,left,right};
+ const withPhoto=async a=>{if(!a)return null;const result={...a};if(a.image_path){const {data,error}=await db.storage.from('tribune-draft-images').createSignedUrl(a.image_path,600);if(data&&!error)result.preview_image_url=data.signedUrl;}return result;};
+ const payload={volume:edition.volume_number,issue:edition.issue_number,date:edition.edition_date,main:await withPhoto(lead),left:await withPhoto(left),right:await withPhoto(right)};
  try{sessionStorage.setItem('tribune_editor_front_proof',JSON.stringify(payload));$('real-front-proof').src='index.html?editor-proof=1&proof-version='+Date.now();}catch(e){const warning=document.createElement('p');warning.textContent='Full front-page preview unavailable: '+e.message;root.append(warning);}
  shell.scrollIntoView({behavior:'smooth',block:'start'});
 }
