@@ -25,4 +25,5 @@ if(!series && archiveMode){
 }
 
 const latestPuzzle=(window.TRIBUNE_PUBLISHED_COMIC_EDITIONS||[]).filter(e=>e.content?.crossword).sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at)))[0];if(latestPuzzle&&!series&&!archiveMode){const area=document.getElementById('sunday-huddle');if(area){const title=latestPuzzle.content.crossword.title;area.querySelector('h2').textContent=title;area.querySelector('.comics-intro').textContent='Latest published crossword · '+latestPuzzle.edition_date+' · Play here or open full size.';const url='published-crossword.html?edition='+encodeURIComponent(latestPuzzle.id);area.querySelector('iframe').src=url;area.querySelector('iframe').title='Published crossword: '+title;area.querySelector('p:last-child').innerHTML='<a href="'+url+'">Open full-size crossword →</a> · <a href="crossword-archives.html">Crossword Archives →</a>';}}}
+}
 render().catch(e=>{root.textContent='Could not display the comic pages: '+e.message;});
