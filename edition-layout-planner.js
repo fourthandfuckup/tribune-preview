@@ -18,7 +18,7 @@ const item=list[i],row=document.createElement('div');row.style.cssText='display:
 const title=document.createElement('strong');title.textContent=(i+1)+'. '+item.headline;row.append(title);
 for(const [label,move] of [['UP',-1],['DOWN',1],['REMOVE',null]]){
 const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=move!==null&&(i+move<0||i+move>=list.length);
-b.onclick=()=>{const data=read(supportKey),arr=[...(data[dept.value]||[])];if(move===null)arr.splice(i,1);else [arr[i],arr[i+move]]=[arr[i+move],arr[i]];data[dept.value]=arr;localStorage.setItem(supportKey,JSON.stringify(data));renderSupport();};row.append(b);
+b.onclick=()=>{const data=read(supportKey),arr=[...(data[dept.value]||[])];if(move===null)arr.splice(i,1);else [arr[i],arr[i+move]]=[arr[i+move],arr[i]];data[dept.value]=arr;localStorage.setItem(supportKey,JSON.stringify(data));persistCurrentLayout();renderSupport();};row.append(b);
 }supportList.append(row);
 }
 if(!list.length)supportList.textContent='No supporting stories selected.';
@@ -29,7 +29,7 @@ if(!id)return status.textContent='Choose a saved article first.';
 if(id===draft.value)return status.textContent='The lead article is already featured; choose a different supporting story.';
 const data=read(supportKey),list=data[dept.value]||[];
 if(list.some(x=>x.id===id))return status.textContent='This story is already in the list.';
-list.push({id,headline});data[dept.value]=list;localStorage.setItem(supportKey,JSON.stringify(data));renderSupport();status.textContent='Supporting story added to the browser-only preview.';
+list.push({id,headline});data[dept.value]=list;localStorage.setItem(supportKey,JSON.stringify(data));persistCurrentLayout();renderSupport();status.textContent='Supporting story added to the browser-only preview.';
 });
 
 const departmentNames={summit:'Westfort Dynasty',chafe:'Sleeping Giant',bench:'Benchwarmer Bulletin',frank:"Frank's Desk",shame:'Wall of Shame'};
@@ -47,7 +47,7 @@ $('department-preview-all').addEventListener('click',overview);
 $('department-clear-plan').addEventListener('click',()=>{
 if(!confirm('Clear the featured and supporting story placements for '+departmentNames[dept.value]+' in this browser? This does not affect any published content.'))return;
 for(const k of [key,idsKey,supportKey]){const data=read(k);delete data[dept.value];localStorage.setItem(k,JSON.stringify(data));}
-choose();overview();status.textContent='Browser-only department layout cleared. Published content unchanged.';
+persistCurrentLayout();choose();overview();status.textContent='Browser-only department layout cleared. Published content unchanged.';
 });
 $('department-private-proof').addEventListener('click',()=>{const id=read(idsKey)[dept.value],supporting=read(supportKey)[dept.value]||[];const ids=[id,...supporting.map(a=>a.id)].filter(Boolean);if(!ids.length){status.textContent='Select a featured or supporting article first.';return;}document.dispatchEvent(new CustomEvent('tribune:private-department-proof',{detail:{department:dept.value,ids}}));});
 // Per-edition snapshots are private to this browser, never stored in Supabase.
@@ -55,6 +55,7 @@ const editionPrefix='tribune-preview-edition-layout:';
 const layoutKeys=[key,idsKey,supportKey];
 let activeEdition=null;
 function snapshot(){const obj={};for(const k of layoutKeys)obj[k]=read(k);return obj;}
+function persistCurrentLayout(){if(activeEdition)localStorage.setItem(editionPrefix+activeEdition,JSON.stringify(snapshot()));}
 function applySnapshot(obj){for(const k of layoutKeys)localStorage.setItem(k,JSON.stringify(obj?.[k]||{}));choose();overview();}
 document.addEventListener('tribune:edition-layout-save',event=>{
  const id=event.detail?.id;if(!id)return;
@@ -99,7 +100,7 @@ $('department-save-plan').addEventListener('click',()=>{
 const id=draft.value,selected=draft.selectedOptions[0],name=selected?.textContent||'';
 const headlines=read(key),ids=read(idsKey);
 if(id){headlines[dept.value]=name;ids[dept.value]=id;}else{delete headlines[dept.value];delete ids[dept.value];}
-localStorage.setItem(key,JSON.stringify(headlines));localStorage.setItem(idsKey,JSON.stringify(ids));
+localStorage.setItem(key,JSON.stringify(headlines));localStorage.setItem(idsKey,JSON.stringify(ids));persistCurrentLayout();
 status.textContent=id?'Test placement saved for this browser. Draft remains private and unpublished.':'Test featured placement cleared.';
 });
 $('department-open-preview').addEventListener('click',()=>window.open('index.html?section='+encodeURIComponent(dept.value),'_blank','noopener'));
