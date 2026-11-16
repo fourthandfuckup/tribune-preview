@@ -71,6 +71,29 @@ document.addEventListener('tribune:edition-layout-switch',event=>{
  status.textContent=saved?'Restored this edition’s browser-only department layout.':'No department layout saved for this edition in this browser.';
 });
 
+const backupStatus=$('department-backup-status');
+$('department-export-layout').addEventListener('click',()=>{
+const payload={format:'tribune-department-layout',version:1,editionId:activeEdition,exportedAt:new Date().toISOString(),layout:snapshot()};
+const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='tribune-department-layout-'+(activeEdition||'unsaved')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+backupStatus.textContent='Layout backup downloaded. This contains article titles and draft IDs, not full private article text.';
+});
+$('department-restore-layout').addEventListener('click',async()=>{
+const file=$('department-import-layout').files[0];if(!file){backupStatus.textContent='Choose a layout JSON backup first.';return;}
+if(file.size>100000){backupStatus.textContent='Backup exceeds 100 KB. Restore cancelled.';return;}
+try{
+const payload=JSON.parse(await file.text());
+if(payload?.format!=='tribune-department-layout'||payload.version!==1||!payload.layout||typeof payload.layout!=='object')throw Error('This is not a supported Tribune layout backup.');
+const obj=payload.layout;
+for(const k of layoutKeys){if(!obj[k]||typeof obj[k]!=='object'||Array.isArray(obj[k]))throw Error('Layout backup is missing required department data.');}
+for(const [dep,entries] of Object.entries(obj[supportKey])){if(!departmentNames[dep]||!Array.isArray(entries)||entries.length>100||entries.some(x=>typeof x.id!=='string'||typeof x.headline!=='string'))throw Error('Invalid supporting article entries.');}
+for(const [dep,title] of Object.entries(obj[key]))if(!departmentNames[dep]||typeof title!=='string')throw Error('Invalid featured headline.');
+for(const [dep,id] of Object.entries(obj[idsKey]))if(!departmentNames[dep]||typeof id!=='string')throw Error('Invalid featured draft ID.');
+if(!confirm('Restore this layout to the CURRENT browser edition plan? Existing browser-only placements for this edition will be replaced. No cloud or public data changes.'))return;
+applySnapshot(obj);if(activeEdition)localStorage.setItem(editionPrefix+activeEdition,JSON.stringify(snapshot()));
+backupStatus.textContent='Layout restored in this browser. Confirm article IDs still exist in Saved Drafts before publishing.';
+}catch(e){backupStatus.textContent='Restore failed: '+e.message;}
+});
 dept.addEventListener('change',choose);
 $('department-save-plan').addEventListener('click',()=>{
 const id=draft.value,selected=draft.selectedOptions[0],name=selected?.textContent||'';
