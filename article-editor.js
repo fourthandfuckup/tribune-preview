@@ -30,16 +30,41 @@ if(d.placement==='main'){const root=doc.querySelector('.front-layout > section')
 $('newspaper-frame').addEventListener('load',updateNewspaperPreview);
 
 // One-time import of the existing front-page investigation. Never changes published files.
-$('import-74').addEventListener('click',async()=>{
-if(!user)return notice('Sign in before importing.');
-if((current||$('headline').value.trim()||$('story').value.trim())&&!confirm('Open the existing $74 investigation? Unsaved changes in the editor will be replaced.'))return;
-notice('Checking for an existing imported copy...');
-const {data:existing,error:findError}=await db.from('tribune_article_drafts').select('*').eq('source_article_id','seventy-four-dollar-man').maybeSingle();
-if(findError){notice('Import lookup failed: '+findError.message);return;}
-if(existing){await load(existing);notice('Opened the existing imported $74 investigation. Edit and save this same draft.');return;}
-try{
-const response=await fetch('imports/seventy-four-dollar-man.json?v=1',{cache:'no-store'});if(!response.ok)throw new Error('Could not load the original article ('+response.status+')');
-const a=await response.json();if(a.id!=='seventy-four-dollar-man'||!Array.isArray(a.body))throw new Error('Original article data is incomplete');
-current=null;sourceArticleId=a.id;clearPhoto();$('headline').value=a.title;$('author').value=a.author;$('summary').value=a.deck;$('story').value=a.body.join('\n\n');$('placement').value='main';for(const c of $('categories').querySelectorAll('input'))c.checked=c.value==='Sleeping Giant League';preview();notice('Original $74 investigation loaded. Click SAVE DRAFT to create its editable private copy. Nothing has been published.');
-}catch(e){notice('Import failed: '+e.message);}
+const importButton=$('import-74');
+importButton.addEventListener('click',async()=>{
+  if(!user){notice('Please sign in before importing.');return;}
+  if((current||$('headline').value.trim()||$('story').value.trim())&&!confirm('Open the existing $74 investigation? Unsaved changes in the editor will be replaced.'))return;
+  importButton.disabled=true;
+  const oldLabel=importButton.textContent;
+  importButton.textContent='IMPORTING...';
+  try{
+    notice('Checking for an existing imported copy...');
+    const {data:existing,error:findError}=await db.from('tribune_article_drafts').select('*').eq('source_article_id','seventy-four-dollar-man').maybeSingle();
+    if(findError)throw new Error('Draft lookup failed: '+findError.message);
+    if(existing){
+      await load(existing);
+      notice('Existing $74 draft opened. No duplicate created; nothing published.');
+      return;
+    }
+    notice('Loading the existing $74 article...');
+    const response=await fetch('imports/seventy-four-dollar-man.json?v=2',{cache:'no-store'});
+    if(!response.ok)throw new Error('Article file unavailable (HTTP '+response.status+').');
+    const a=await response.json();
+    if(a.id!=='seventy-four-dollar-man'||!Array.isArray(a.body)||!a.body.length||!a.title)throw new Error('Article file is incomplete.');
+    current=null;sourceArticleId=a.id;clearPhoto();
+    $('headline').value=a.title;
+    $('author').value=a.author||'Frank “The Hammer” Haggerty';
+    $('summary').value=a.deck||'';
+    $('story').value=a.body.join('\n\n');
+    $('placement').value='main';
+    for(const c of $('categories').querySelectorAll('input'))c.checked=c.value==='Sleeping Giant League';
+    preview();
+    notice('Imported the existing $74 article into the editor. Review it, then click SAVE DRAFT. Nothing published.');
+    $('headline').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(e){
+    notice('Import failed: '+(e?.message||String(e)));
+  }finally{
+    importButton.disabled=false;
+    importButton.textContent=oldLabel;
+  }
 });
