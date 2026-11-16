@@ -50,6 +50,27 @@ for(const k of [key,idsKey,supportKey]){const data=read(k);delete data[dept.valu
 choose();overview();status.textContent='Browser-only department layout cleared. Published content unchanged.';
 });
 $('department-private-proof').addEventListener('click',()=>{const id=read(idsKey)[dept.value],supporting=read(supportKey)[dept.value]||[];const ids=[id,...supporting.map(a=>a.id)].filter(Boolean);if(!ids.length){status.textContent='Select a featured or supporting article first.';return;}document.dispatchEvent(new CustomEvent('tribune:private-department-proof',{detail:{department:dept.value,ids}}));});
+// Per-edition snapshots are private to this browser, never stored in Supabase.
+const editionPrefix='tribune-preview-edition-layout:';
+const layoutKeys=[key,idsKey,supportKey];
+let activeEdition=null;
+function snapshot(){const obj={};for(const k of layoutKeys)obj[k]=read(k);return obj;}
+function applySnapshot(obj){for(const k of layoutKeys)localStorage.setItem(k,JSON.stringify(obj?.[k]||{}));choose();overview();}
+document.addEventListener('tribune:edition-layout-save',event=>{
+ const id=event.detail?.id;if(!id)return;
+ localStorage.setItem(editionPrefix+id,JSON.stringify(snapshot()));activeEdition=id;
+ status.textContent='Department layout snapshot saved for this edition in this browser only. Not yet part of cloud edition or publication.';
+});
+document.addEventListener('tribune:edition-layout-switch',event=>{
+ const id=event.detail?.id;
+ if(activeEdition)localStorage.setItem(editionPrefix+activeEdition,JSON.stringify(snapshot()));
+ activeEdition=id||null;
+ if(!id){applySnapshot({});status.textContent='New edition: blank department layout plan.';return;}
+ let saved=null;try{saved=JSON.parse(localStorage.getItem(editionPrefix+id)||'null')}catch{}
+ applySnapshot(saved);
+ status.textContent=saved?'Restored this edition’s browser-only department layout.':'No department layout saved for this edition in this browser.';
+});
+
 dept.addEventListener('change',choose);
 $('department-save-plan').addEventListener('click',()=>{
 const id=draft.value,selected=draft.selectedOptions[0],name=selected?.textContent||'';
