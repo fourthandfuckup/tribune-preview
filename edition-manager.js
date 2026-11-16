@@ -168,6 +168,38 @@ async function previewEdition(edition){
  await addArticle(edition.bulletin_left_id,'BENCHWARMER BULLETIN · LEFT');
  await addArticle(edition.bulletin_right_id,'BENCHWARMER BULLETIN · RIGHT');
  if(!ids.length){const p=document.createElement('p');p.textContent='No front-page articles selected yet.';root.append(p);}
+ const comicProof=$('private-comic-proof'),crosswordProof=$('private-crossword-proof');
+ comicProof.replaceChildren();crosswordProof.replaceChildren();
+ const selectedComicIds=(comicLinks.data||[]).map(x=>x.comic_id);
+ let savedOrder=[];try{savedOrder=JSON.parse(localStorage.getItem('tribune-preview-comic-order')||'[]')}catch{}
+ if(!Array.isArray(savedOrder))savedOrder=[];
+ const leadId=localStorage.getItem('tribune-preview-featured-comic')||'';
+ const orderedComicIds=[...selectedComicIds].sort((a,b)=>{
+  if(savedOrder.length){const ai=savedOrder.indexOf(a),bi=savedOrder.indexOf(b);return (ai<0?9999:ai)-(bi<0?9999:bi);}
+  return Number(b===leadId)-Number(a===leadId);
+ });
+ const comicHeading=document.createElement('h3');comicHeading.textContent='THE OBITUARIES — '+orderedComicIds.length+' COMIC(S) SELECTED';comicProof.append(comicHeading);
+ if(!orderedComicIds.length){const empty=document.createElement('p');empty.textContent='No comics assigned to this saved draft.';comicProof.append(empty);}
+ for(const [i,id] of orderedComicIds.entries()){
+  const c=comics.find(x=>x.id===id);if(!c){const missing=document.createElement('p');missing.textContent='Selected comic '+id+' was not found in the library.';comicProof.append(missing);continue;}
+  const title=document.createElement('h4');title.textContent=(i===0?'LEAD · ':'')+c.title+' · '+c.series.replaceAll('-',' ');comicProof.append(title);
+  const {data:file,error:imageError}=await db.storage.from(comicBucket).download(c.image_path);
+  if(imageError||!file){const warning=document.createElement('p');warning.textContent='Comic image unavailable: '+(imageError?.message||c.title);comicProof.append(warning);continue;}
+  const img=document.createElement('img');img.src=URL.createObjectURL(file);img.alt=c.title;img.style.cssText='width:100%;height:auto;max-width:900px;display:block;margin:10px auto 22px';img.onload=()=>URL.revokeObjectURL(img.src);comicProof.append(img);
+ }
+ const crosswordHeading=document.createElement('h3');crosswordHeading.textContent='THE SUNDAY HUDDLE — CROSSWORD';crosswordProof.append(crosswordHeading);
+ const selectedPuzzle=puzzles.find(p=>p.id===edition.crossword_draft_id);
+ if(selectedPuzzle){
+  const title=document.createElement('p');title.textContent='Selected puzzle: '+selectedPuzzle.title;crosswordProof.append(title);
+  try{
+   const response=await fetch('crossword-1.html.html',{cache:'no-store'});if(!response.ok)throw Error('Crossword player unavailable');
+   let html=await response.text(),start=html.indexOf('const DATA='),end=html.indexOf(';',start);
+   if(start<0||end<0)throw Error('Crossword player format changed');
+   html=html.slice(0,start)+'const DATA='+JSON.stringify(selectedPuzzle.puzzle)+html.slice(end);
+   html=html.replaceAll('Fourth & Long',selectedPuzzle.title.replaceAll('&','&amp;').replaceAll('<','&lt;')).replaceAll('Crossword No. 1','Crossword Preview');
+   const frame=document.createElement('iframe');frame.title='Private crossword proof: '+selectedPuzzle.title;frame.style.cssText='width:100%;height:750px;border:2px solid #473b2c;background:#f5ecd5';frame.srcdoc=html;crosswordProof.append(frame);
+  }catch(error){const warning=document.createElement('p');warning.textContent='Could not show crossword: '+error.message;crosswordProof.append(warning);}
+ }else{const empty=document.createElement('p');empty.textContent='No crossword assigned to this saved draft.';crosswordProof.append(empty);}
  const comicIds=(comicLinks.data||[]).map(x=>x.comic_id);
  if(comicIds.length){
   const heading=document.createElement('h2');heading.textContent='THE OBITUARY PAGES · COMICS';root.append(heading);
