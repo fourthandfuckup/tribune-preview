@@ -32,6 +32,23 @@ if(list.some(x=>x.id===id))return status.textContent='This story is already in t
 list.push({id,headline});data[dept.value]=list;localStorage.setItem(supportKey,JSON.stringify(data));renderSupport();status.textContent='Supporting story added to the browser-only preview.';
 });
 
+const departmentNames={summit:'Westfort Dynasty',chafe:'Sleeping Giant',bench:'Benchwarmer Bulletin',frank:"Frank's Desk",shame:'Wall of Shame'};
+function overview(){
+const box=$('department-overview');box.replaceChildren();
+const heads=read(key),supporting=read(supportKey);
+for(const [id,name] of Object.entries(departmentNames)){
+const block=document.createElement('div');block.style.cssText='padding:8px 0;border-bottom:1px solid #8a7655';
+const h=document.createElement('strong');h.textContent=name;block.append(h);
+const lead=document.createElement('p');lead.textContent='Featured: '+(heads[id]||'Not selected');block.append(lead);
+const list=supporting[id]||[];const note=document.createElement('p');note.textContent='Supporting: '+(list.length?list.map((a,i)=>(i+1)+'. '+a.headline).join(' | '):'None');block.append(note);box.append(block);
+}
+}
+$('department-preview-all').addEventListener('click',overview);
+$('department-clear-plan').addEventListener('click',()=>{
+if(!confirm('Clear the featured and supporting story placements for '+departmentNames[dept.value]+' in this browser? This does not affect any published content.'))return;
+for(const k of [key,idsKey,supportKey]){const data=read(k);delete data[dept.value];localStorage.setItem(k,JSON.stringify(data));}
+choose();overview();status.textContent='Browser-only department layout cleared. Published content unchanged.';
+});
 dept.addEventListener('change',choose);
 $('department-save-plan').addEventListener('click',()=>{
 const id=draft.value,selected=draft.selectedOptions[0],name=selected?.textContent||'';
@@ -41,5 +58,5 @@ localStorage.setItem(key,JSON.stringify(headlines));localStorage.setItem(idsKey,
 status.textContent=id?'Test placement saved for this browser. Draft remains private and unpublished.':'Test featured placement cleared.';
 });
 $('department-open-preview').addEventListener('click',()=>window.open('index.html?section='+encodeURIComponent(dept.value),'_blank','noopener'));
-const source=$('main');if(source){new MutationObserver(()=>sync()).observe(source,{childList:true});sync();renderSupport();}
+const source=$('main');if(source){new MutationObserver(()=>sync()).observe(source,{childList:true});sync();renderSupport();overview();}
 })();
