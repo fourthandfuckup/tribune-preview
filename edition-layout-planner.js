@@ -57,6 +57,7 @@ let activeEdition=null;
 function snapshot(){const obj={};for(const k of layoutKeys)obj[k]=read(k);return obj;}
 function persistCurrentLayout(){if(activeEdition)localStorage.setItem(editionPrefix+activeEdition,JSON.stringify(snapshot()));}
 document.addEventListener('tribune:department-layout-changed',()=>{persistCurrentLayout();choose();overview();});
+window.addEventListener('storage',event=>{if(layoutKeys.includes(event.key)){persistCurrentLayout();choose();overview();status.textContent='Department placements refreshed from another Tribune editor tab.';}});
 function applySnapshot(obj){for(const k of layoutKeys)localStorage.setItem(k,JSON.stringify(obj?.[k]||{}));choose();overview();}
 document.addEventListener('tribune:edition-layout-save',event=>{
  const id=event.detail?.id;if(!id)return;
