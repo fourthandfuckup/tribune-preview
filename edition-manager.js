@@ -204,6 +204,17 @@ document.addEventListener('tribune:private-department-proof',async event=>{
  const body=document.createElement('div');body.textContent=a.story||'';body.style.whiteSpace='pre-wrap';section.append(body);
  root.append(section);
  }
+ if(data?.length){
+  const proofArticles=[];
+  for(const id of ids){const a=byId.get(id);if(!a)continue;const item={id,headline:a.headline,author:a.author,summary:a.summary,story:a.story,categories:a.categories};
+   if(a.image_path){const {data:file,error:imageError}=await db.storage.from('tribune-draft-images').download(a.image_path);if(file&&!imageError){item.image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Image read failed'));reader.readAsDataURL(file);});}}
+   proofArticles.push(item);
+  }
+  const open=document.createElement('button');open.type='button';open.textContent='VIEW THESE ARTICLES IN THE NEWSPAPER DEPARTMENT LAYOUT';open.onclick=()=>{
+   try{sessionStorage.setItem('tribune-private-department-proof',JSON.stringify({department:event.detail.department,articles:proofArticles}));window.open('department-private-proof.html','_blank','noopener');}
+   catch(err){const p=document.createElement('p');p.textContent='Could not open department newspaper proof: '+err.message;root.append(p);}
+  };root.prepend(open);
+ }
  if(!data?.length)root.append(document.createTextNode('No matching private drafts found.'));
  root.scrollIntoView({behavior:'smooth',block:'start'});
 });
