@@ -178,3 +178,29 @@ async function publishPreview(e){
  if(result.error)return msg('Publishing failed: '+result.error.message);
  msg('Published articles, '+publishedComics.length+' comic(s), and '+(publishedCrossword?'a crossword':'no crossword')+' to the PREVIEW ONLY. Live newspaper unchanged.');
 }
+
+// Authenticated, private department proof. Never publishes, uploads, or saves a draft.
+document.addEventListener('tribune:private-department-proof',async event=>{
+ const root=$('department-private-proof-content');if(!root)return;
+ root.hidden=false;root.replaceChildren();
+ if(!user){root.textContent='Sign in to Frank’s Office to inspect private article drafts.';return;}
+ const ids=[...new Set(event.detail.ids)].filter(Boolean);
+ const heading=document.createElement('h3');heading.textContent='CONFIDENTIAL · '+String(event.detail.department).toUpperCase()+' · PRIVATE ARTICLE PROOF';root.append(heading);
+ const loading=document.createElement('p');loading.textContent='Loading complete article drafts…';root.append(loading);
+ const {data,error}=await db.from('tribune_article_drafts').select('id,headline,author,summary,story,categories,image_path').in('id',ids);
+ loading.remove();if(error){root.append(document.createTextNode('Could not load private drafts: '+error.message));return;}
+ const byId=new Map((data||[]).map(a=>[a.id,a]));
+ for(const [index,id] of ids.entries()){
+ const a=byId.get(id);if(!a)continue;
+ const section=document.createElement('article');section.style.cssText='padding:18px 0;border-bottom:2px solid #786347';
+ const kicker=document.createElement('p');kicker.textContent=(index?'SUPPORTING STORY '+index:'FEATURED STORY')+' · '+(a.categories||[]).join(' / ');section.append(kicker);
+ const h=document.createElement('h2');h.textContent=a.headline||'Untitled';section.append(h);
+ const byline=document.createElement('p');byline.textContent='By '+(a.author||'Tribune Staff');section.append(byline);
+ if(a.image_path){const {data:file,error:imgError}=await db.storage.from('tribune-draft-images').download(a.image_path);if(file&&!imgError){const url=URL.createObjectURL(file),img=document.createElement('img');img.src=url;img.alt='Private draft article image';img.style.cssText='max-width:100%;max-height:350px;object-fit:contain';img.onload=()=>URL.revokeObjectURL(url);section.append(img);}else{const note=document.createElement('p');note.textContent='Image unavailable in private proof.';section.append(note);}}
+ const summary=document.createElement('p');summary.textContent=a.summary||'';summary.style.fontWeight='bold';section.append(summary);
+ const body=document.createElement('div');body.textContent=a.story||'';body.style.whiteSpace='pre-wrap';section.append(body);
+ root.append(section);
+ }
+ if(!data?.length)root.append(document.createTextNode('No matching private drafts found.'));
+ root.scrollIntoView({behavior:'smooth',block:'start'});
+});
