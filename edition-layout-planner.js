@@ -4,10 +4,34 @@
 const $=id=>document.getElementById(id);
 const key='tribune-preview-department-headlines';
 const idsKey='tribune-preview-department-draft-ids';
+const supportKey='tribune-preview-department-supporting';
+const support=$('department-support-draft'),supportList=$('department-support-list');
 const dept=$('department-plan'),draft=$('department-lead-draft'),status=$('department-plan-status');
 function read(key){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch{return {}}}
-function sync(){const source=$('main');if(!source)return;const prev=draft.value;draft.replaceChildren(new Option('— No featured article —',''));for(const o of source.options){if(!o.value)continue;draft.add(new Option(o.textContent,o.value));}const selected=read(idsKey)[dept.value]||prev;draft.value=[...draft.options].some(o=>o.value===selected)?selected:'';}
-function choose(){sync();draft.value=read(idsKey)[dept.value]||'';status.textContent='Select a saved draft and set the test feature.';}
+function sync(){const source=$('main');if(!source)return;const prev=draft.value;draft.replaceChildren(new Option('— No featured article —',''));for(const o of source.options){if(!o.value)continue;draft.add(new Option(o.textContent,o.value));}support.replaceChildren(new Option('— Select saved draft —',''));for(const o of source.options){if(o.value)support.add(new Option(o.textContent,o.value));}const selected=read(idsKey)[dept.value]||prev;draft.value=[...draft.options].some(o=>o.value===selected)?selected:'';}
+function choose(){sync();renderSupport();draft.value=read(idsKey)[dept.value]||'';status.textContent='Select a saved draft and set the test feature.';}
+function renderSupport(){
+supportList.replaceChildren();
+const list=read(supportKey)[dept.value]||[];
+for(let i=0;i<list.length;i++){
+const item=list[i],row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #8a7655;padding:8px 0';
+const title=document.createElement('strong');title.textContent=(i+1)+'. '+item.headline;row.append(title);
+for(const [label,move] of [['UP',-1],['DOWN',1],['REMOVE',null]]){
+const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=move!==null&&(i+move<0||i+move>=list.length);
+b.onclick=()=>{const data=read(supportKey),arr=[...(data[dept.value]||[])];if(move===null)arr.splice(i,1);else [arr[i],arr[i+move]]=[arr[i+move],arr[i]];data[dept.value]=arr;localStorage.setItem(supportKey,JSON.stringify(data));renderSupport();};row.append(b);
+}supportList.append(row);
+}
+if(!list.length)supportList.textContent='No supporting stories selected.';
+}
+$('department-add-support').addEventListener('click',()=>{
+const id=support.value,headline=support.selectedOptions[0]?.textContent;
+if(!id)return status.textContent='Choose a saved article first.';
+if(id===draft.value)return status.textContent='The lead article is already featured; choose a different supporting story.';
+const data=read(supportKey),list=data[dept.value]||[];
+if(list.some(x=>x.id===id))return status.textContent='This story is already in the list.';
+list.push({id,headline});data[dept.value]=list;localStorage.setItem(supportKey,JSON.stringify(data));renderSupport();status.textContent='Supporting story added to the browser-only preview.';
+});
+
 dept.addEventListener('change',choose);
 $('department-save-plan').addEventListener('click',()=>{
 const id=draft.value,selected=draft.selectedOptions[0],name=selected?.textContent||'';
@@ -17,5 +41,5 @@ localStorage.setItem(key,JSON.stringify(headlines));localStorage.setItem(idsKey,
 status.textContent=id?'Test placement saved for this browser. Draft remains private and unpublished.':'Test featured placement cleared.';
 });
 $('department-open-preview').addEventListener('click',()=>window.open('index.html?section='+encodeURIComponent(dept.value),'_blank','noopener'));
-const source=$('main');if(source){new MutationObserver(()=>sync()).observe(source,{childList:true});sync();}
+const source=$('main');if(source){new MutationObserver(()=>sync()).observe(source,{childList:true});sync();renderSupport();}
 })();
