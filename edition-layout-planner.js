@@ -49,6 +49,7 @@ if(!confirm('Clear the featured and supporting story placements for '+department
 for(const k of [key,idsKey,supportKey]){const data=read(k);delete data[dept.value];localStorage.setItem(k,JSON.stringify(data));}
 choose();overview();status.textContent='Browser-only department layout cleared. Published content unchanged.';
 });
+$('department-private-proof').addEventListener('click',()=>{const id=read(idsKey)[dept.value],supporting=read(supportKey)[dept.value]||[];const ids=[id,...supporting.map(a=>a.id)].filter(Boolean);if(!ids.length){status.textContent='Select a featured or supporting article first.';return;}document.dispatchEvent(new CustomEvent('tribune:private-department-proof',{detail:{department:dept.value,ids}}));});
 dept.addEventListener('change',choose);
 $('department-save-plan').addEventListener('click',()=>{
 const id=draft.value,selected=draft.selectedOptions[0],name=selected?.textContent||'';
