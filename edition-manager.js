@@ -155,7 +155,8 @@ async function previewEdition(edition){
 
 async function publishPreview(e){
  if(!user)return;
- if(!confirm('Publish this edition to the PUBLIC PREVIEW ARCHIVE? Anyone with the preview-site link can read its articles, comics and crossword. The live fourthandfuckup.com site will NOT change. Continue?'))return;
+ if(!confirm('STEP 1 OF 2 — Review publication: Volume '+roman(e.volume_number)+', Issue '+e.issue_number+' ('+e.edition_date+'). This will make the selected articles, comics and crossword publicly accessible on the PREVIEW SITE. Continue to final approval?'))return;
+ if(!confirm('STEP 2 OF 2 — FINAL APPROVAL: Publish this edition to the PUBLIC PREVIEW ARCHIVE now? This is a real public preview publication, not a private draft. The live fourthandfuckup.com newspaper will not change.'))return;
  const ids=[e.main_article_id,e.bulletin_left_id,e.bulletin_right_id].filter(Boolean);
  if(!ids.length)return msg('Select at least one article before publishing to the preview archive.');
  const {data,error}=await db.from('tribune_article_drafts').select('id,headline,author,summary,story,categories,image_path').in('id',ids);
