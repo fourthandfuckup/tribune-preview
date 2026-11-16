@@ -211,7 +211,7 @@ document.addEventListener('tribune:private-department-proof',async event=>{
    proofArticles.push(item);
   }
   const open=document.createElement('button');open.type='button';open.textContent='VIEW THESE ARTICLES IN THE NEWSPAPER DEPARTMENT LAYOUT';open.onclick=()=>{
-   try{sessionStorage.setItem('tribune-private-department-proof',JSON.stringify({department:event.detail.department,articles:proofArticles}));window.open('department-private-proof.html','_blank','noopener');}
+   try{sessionStorage.setItem('tribune-private-department-proof',JSON.stringify({department:event.detail.department,articles:proofArticles}));location.href='department-private-proof.html';}
    catch(err){const p=document.createElement('p');p.textContent='Could not open department newspaper proof: '+err.message;root.append(p);}
   };root.prepend(open);
  }
