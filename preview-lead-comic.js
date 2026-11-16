@@ -20,11 +20,12 @@ $('edition-save-lead-comic').addEventListener('click',()=>{localStorage.setItem(
 $('edition-save-comic-order').addEventListener('click',()=>{localStorage.setItem(orderKey,JSON.stringify(ordered.map(c=>c.id)));localStorage.setItem(leadKey,ordered[0]?.id||'');select.value=ordered[0]?.id||'';status.textContent='Full comic order saved in this browser. Reload The Obituaries to see it. No live changes.';});
 $('edition-reset-comic-order').addEventListener('click',()=>{localStorage.removeItem(orderKey);localStorage.removeItem(leadKey);ordered=[...current];select.value='';render();status.textContent='Preview comic ordering reset. Published data unchanged.';});
 function refreshDraftComics(){
- const checked=[...document.querySelectorAll('.comic-check:checked')];
+ const allDraft=[...document.querySelectorAll('.comic-check')];
+ const checked=allDraft.filter(cb=>cb.checked);
  const selected=checked.map(cb=>({id:cb.value,title:cb.closest('label')?.querySelector('span')?.textContent?.trim()||'Untitled comic'}));
  // Include both published comics and selected draft comics; deduplicate by ID.
  const ids=readOrder(),lead=localStorage.getItem(leadKey)||'';
- current=[...published];for(const comic of selected)if(!current.some(c=>c.id===comic.id))current.push(comic);
+ current=[...published];for(const cb of allDraft){const comic={id:cb.value,title:cb.closest('label')?.querySelector('span')?.textContent?.trim()||'Untitled comic'};if(!current.some(c=>c.id===comic.id))current.push(comic);}
  ordered=[...current].sort((a,b)=>{
   const ia=ids.indexOf(a.id),ib=ids.indexOf(b.id);
   return (ia<0?9999:ia)-(ib<0?9999:ib);
@@ -41,6 +42,7 @@ const library=$('comic-library');
 if(library){
  library.addEventListener('change',event=>{if(event.target.matches('.comic-check'))refreshDraftComics();});
  new MutationObserver(()=>refreshDraftComics()).observe(library,{childList:true});
+ document.addEventListener('tribune:comic-selection-updated',refreshDraftComics);
 }
 refreshDraftComics();
 (async()=>{
