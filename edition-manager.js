@@ -71,6 +71,7 @@ async function loadEditionComics(id){
  if(error){$('comic-status').textContent=error.message;return;}
  const ids=new Set((data||[]).map(c=>c.comic_id));
  document.querySelectorAll('.comic-check').forEach(c=>c.checked=ids.has(c.value));
+ document.dispatchEvent(new Event('tribune:comic-selection-updated'));
 }
 async function saveEditionComics(id){
  const {error}=await db.from('tribune_edition_comics').delete().eq('edition_id',id).eq('editor_id',user.id);
@@ -92,7 +93,7 @@ $('upload-comic').onclick=async()=>{
  if(uploadError){button.disabled=false;$('comic-status').textContent=uploadError.message;return;}
  const {data:inserted,error}=await db.from('tribune_comic_drafts').insert({editor_id:user.id,series,title,image_path:path}).select('id').single();
  if(error){await db.storage.from(comicBucket).remove([path]);button.disabled=false;$('comic-status').textContent=error.message;return;}
- $('comic-title').value='';$('comic-file').value='';await loadComics();const newCheckbox=[...document.querySelectorAll('.comic-check')].find(c=>c.value===inserted.id);if(newCheckbox)newCheckbox.checked=true;button.disabled=false;$('comic-status').textContent='Comic uploaded and selected. You can upload more strips; all checked comics will be saved to this edition.';
+ $('comic-title').value='';$('comic-file').value='';await loadComics();const newCheckbox=[...document.querySelectorAll('.comic-check')].find(c=>c.value===inserted.id);if(newCheckbox)newCheckbox.checked=true;document.dispatchEvent(new Event('tribune:comic-selection-updated'));button.disabled=false;$('comic-status').textContent='Comic uploaded and selected. You can upload more strips; all checked comics will be saved to this edition.';
 };
 
 function validatePuzzle(p){
