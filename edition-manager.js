@@ -155,10 +155,8 @@ async function previewEdition(edition){
 
 async function publishPreview(e){
  if(!user)return;
- if(localStorage.getItem('tribune-preview-allow-public-writes')!=='enabled'){
-  msg('SAFE TEST MODE: Real preview publication is locked because this site shares the production Supabase project. Use the private edition preview instead. No public content changed.');
-  return;
- }
+ msg('SAFE TEST MODE: Public preview publication is disabled until an isolated publishing backend is approved. Private drafts and previews remain available. No public content changed.');
+ return;
  if(!confirm('STEP 1 OF 2 — Review publication: Volume '+roman(e.volume_number)+', Issue '+e.issue_number+' ('+e.edition_date+'). This will make the selected articles, comics and crossword publicly accessible on the PREVIEW SITE. Continue to final approval?'))return;
  if(!confirm('STEP 2 OF 2 — FINAL APPROVAL: Publish this edition to the PUBLIC PREVIEW ARCHIVE now? This is a real public preview publication, not a private draft. The live fourthandfuckup.com newspaper will not change.'))return;
  const ids=[e.main_article_id,e.bulletin_left_id,e.bulletin_right_id].filter(Boolean);
