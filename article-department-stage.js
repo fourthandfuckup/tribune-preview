@@ -20,6 +20,7 @@ if(list.some(x=>x.id===selectedId)){status.textContent='This article is already 
 list.push({id:selectedId,headline});support[dep]=list;
 }
 localStorage.setItem(headKey,JSON.stringify(heads));localStorage.setItem(idsKey,JSON.stringify(ids));localStorage.setItem(supportKey,JSON.stringify(support));
+document.dispatchEvent(new CustomEvent('tribune:department-layout-changed'));
 status.textContent='Staged privately for '+dept.selectedOptions[0].textContent+'. Open the department preview to review. Nothing was published.';
 });
 $('open-department-preview').addEventListener('click',()=>window.open('index.html?section='+encodeURIComponent(dept.value),'_blank','noopener'));
