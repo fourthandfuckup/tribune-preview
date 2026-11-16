@@ -56,6 +56,7 @@ const layoutKeys=[key,idsKey,supportKey];
 let activeEdition=null;
 function snapshot(){const obj={};for(const k of layoutKeys)obj[k]=read(k);return obj;}
 function persistCurrentLayout(){if(activeEdition)localStorage.setItem(editionPrefix+activeEdition,JSON.stringify(snapshot()));}
+document.addEventListener('tribune:department-layout-changed',()=>{persistCurrentLayout();choose();overview();});
 function applySnapshot(obj){for(const k of layoutKeys)localStorage.setItem(k,JSON.stringify(obj?.[k]||{}));choose();overview();}
 document.addEventListener('tribune:edition-layout-save',event=>{
  const id=event.detail?.id;if(!id)return;
