@@ -48,6 +48,34 @@ $('signin').onclick=async()=>{let email=$('email').value.trim();if(!email)return
 $('signout').onclick=async()=>{await db.auth.signOut();user=null;await auth();};
 $('save').onclick=save;$('new').onclick=clear;$('refresh-articles').onclick=articlesLoad;for(let id of ['volume','issue','date'])$(id).addEventListener('input',proof);proof();auth();
 const comicBucket='tribune-comic-drafts';
+let publishedComicLibrary=[];
+const reuseKey=id=>'tribune-preview-reused-comics:'+id;
+function readReusedComics(id){try{const x=JSON.parse(localStorage.getItem(reuseKey(id))||'[]');return Array.isArray(x)?x:[]}catch{return []}}
+function saveReusedComics(id){if(!id)return;const ids=[...document.querySelectorAll('.published-comic-check:checked')].map(x=>x.value);localStorage.setItem(reuseKey(id),JSON.stringify(ids));}
+function renderPublishedComicChoices(){
+ const root=$('published-comic-library');if(!root)return;
+ const selected=new Set(readReusedComics(current));root.replaceChildren();
+ for(const c of publishedComicLibrary){
+  const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #8b7c63';
+  const cb=document.createElement('input');cb.type='checkbox';cb.className='published-comic-check';cb.value=c.id;cb.checked=selected.has(c.id);cb.style.width='auto';
+  cb.addEventListener('change',()=>{saveReusedComics(current);document.dispatchEvent(new Event('tribune:comic-selection-updated'));});
+  const title=document.createElement('span');title.textContent=c.title+' · '+c.series+' (previously published)';
+  row.append(cb,title);root.append(row);
+ }
+ if(!publishedComicLibrary.length)root.textContent='No previously published comics available.';
+ document.dispatchEvent(new Event('tribune:comic-selection-updated'));
+}
+async function loadPublishedComicChoices(){
+ try{
+  const {data,error}=await db.from('tribune_published_editions').select('content').order('published_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  const unique=new Map();
+  for(const edition of data||[])for(const c of edition.content?.comics||[])if(c.id&&!unique.has(c.id))unique.set(c.id,c);
+  publishedComicLibrary=[...unique.values()];renderPublishedComicChoices();
+ }catch(e){$('published-comic-library').textContent='Could not load previous comics: '+(e.message||e);}
+}
+loadPublishedComicChoices();
+
 async function loadComics(){
  const {data,error}=await db.from('tribune_comic_drafts').select('id,series,title,image_path').order('created_at',{ascending:false});
  if(error){$('comic-status').textContent='Could not load comics: '+error.message;return;}
@@ -72,8 +100,10 @@ async function loadEditionComics(id){
  const ids=new Set((data||[]).map(c=>c.comic_id));
  document.querySelectorAll('.comic-check').forEach(c=>c.checked=ids.has(c.value));
  document.dispatchEvent(new Event('tribune:comic-selection-updated'));
+ renderPublishedComicChoices();
 }
 async function saveEditionComics(id){
+ saveReusedComics(id);
  const {error}=await db.from('tribune_edition_comics').delete().eq('edition_id',id).eq('editor_id',user.id);
  if(error)return error.message;
  const ids=[...document.querySelectorAll('.comic-check:checked')].map(c=>c.value);
@@ -171,7 +201,7 @@ async function previewEdition(edition){
  if(!ids.length){const p=document.createElement('p');p.textContent='No front-page articles selected yet.';root.append(p);}
  const comicProof=$('private-comic-proof'),crosswordProof=$('private-crossword-proof');
  comicProof.replaceChildren();crosswordProof.replaceChildren();
- const selectedComicIds=(comicLinks.data||[]).map(x=>x.comic_id);
+ const selectedComicIds=[...(comicLinks.data||[]).map(x=>x.comic_id),...readReusedComics(edition.id)];
  let savedOrder=[];try{savedOrder=JSON.parse(localStorage.getItem('tribune-preview-comic-order')||'[]')}catch{}
  if(!Array.isArray(savedOrder))savedOrder=[];
  const leadId=localStorage.getItem('tribune-preview-featured-comic')||'';
@@ -182,6 +212,12 @@ async function previewEdition(edition){
  const comicHeading=document.createElement('h3');comicHeading.textContent='THE OBITUARIES — '+orderedComicIds.length+' COMIC(S) SELECTED';comicProof.append(comicHeading);
  if(!orderedComicIds.length){const empty=document.createElement('p');empty.textContent='No comics assigned to this saved draft.';comicProof.append(empty);}
  for(const [i,id] of orderedComicIds.entries()){
+  const existing=publishedComicLibrary.find(x=>x.id===id);
+  if(existing){
+   const title=document.createElement('h4');title.textContent=(i===0?'LEAD · ':'')+existing.title+' · '+existing.series+' (reused)';comicProof.append(title);
+   const img=document.createElement('img');img.src=existing.image_url;img.alt=existing.title;img.style.cssText='width:100%;height:auto;max-width:900px;display:block;margin:10px auto 22px';comicProof.append(img);
+   continue;
+  }
   const c=comics.find(x=>x.id===id);if(!c){const missing=document.createElement('p');missing.textContent='Selected comic '+id+' was not found in the library.';comicProof.append(missing);continue;}
   const title=document.createElement('h4');title.textContent=(i===0?'LEAD · ':'')+c.title+' · '+c.series.replaceAll('-',' ');comicProof.append(title);
   const {data:file,error:imageError}=await db.storage.from(comicBucket).download(c.image_path);
