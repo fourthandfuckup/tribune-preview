@@ -5,6 +5,6 @@ const root=document.getElementById('proof');let data=null;try{data=JSON.parse(se
 if(!data){root.textContent='No private proof is available in this browser session. Open a proof from the Article Editor.';}
 else{
 function add(tag,content,cls){const node=document.createElement(tag);node.textContent=content||'';if(cls)node.className=cls;root.append(node);return node;}
-add('p',(data.categories||[]).join(' · '),'private');add('h1',data.headline,'headline');add('p','By '+(data.author||'Tribune Staff'));if(typeof data.image==='string'&&/^data:image\\/(png|jpeg|webp);base64,/.test(data.image)){const img=document.createElement('img');img.className='article-image';img.src=data.image;img.alt='Article illustration';root.append(img);}add('p',data.summary,'summary');add('div',data.story,'story-text');
+add('p',(data.categories||[]).join(' · '),'private');add('h1',data.headline,'headline');add('p','By '+(data.author||'Tribune Staff'));if(typeof data.image==='string'&&['data:image/png;base64,','data:image/jpeg;base64,','data:image/webp;base64,'].some(prefix=>data.image.startsWith(prefix))){const img=document.createElement('img');img.className='article-image';img.src=data.image;img.alt='Article illustration';root.append(img);}add('p',data.summary,'summary');add('div',data.story,'story-text');
 }
 </script></body></html>
