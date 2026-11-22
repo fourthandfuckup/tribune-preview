@@ -34,31 +34,34 @@ function initTiplineTurnstile(){
  note.style.cssText='font:600 13px/1.5 sans-serif;padding:10px;border:1px solid #8d7655;margin:8px 0;color:#4a2b18;background:#f8eacb';
  widget.insertAdjacentElement('afterend',note);
  const report=message=>{note.textContent='CAPTCHA TEST: '+message;};
- report('Waiting for Cloudflare security script…');
+ let rendered=false;
  let completed=false;
+ report('Checking Cloudflare…');
  const render=()=>{
-  if(!widget.isConnected||widget.dataset.rendered==='true')return;
-  if(!window.turnstile){report('Cloudflare script loaded but Turnstile API unavailable.');return;}
+  if(rendered||!widget.isConnected||!window.turnstile)return;
   try{
-   report('Cloudflare API loaded. Rendering verification…');
    const id=window.turnstile.render(widget,{sitekey:widget.dataset.sitekey,
     callback:()=>{completed=true;report('Verification token received. CAPTCHA is working.');},
-    'error-callback':code=>{report('Cloudflare verification error '+String(code||'unknown')+'. Please send a screenshot of this message.');},
-    'expired-callback':()=>{completed=false;report('Verification expired. Complete it again.');},
+    'error-callback':code=>report('Cloudflare error '+String(code||'unknown')+'. Send a screenshot.'),
+    'expired-callback':()=>{completed=false;report('Verification expired. Please retry.');},
     'timeout-callback':()=>report('Cloudflare verification timed out.')
    });
-   widget.dataset.rendered='true';
-   if(id===undefined)report('Cloudflare returned no widget ID.');
-   setTimeout(()=>{if(!completed&&!widget.querySelector('iframe'))report('No verification iframe appeared after 8 seconds. Check Cloudflare site key/domain settings.');},8000);
-  }catch(err){report('Widget render failed: '+String(err&&err.message||err).slice(0,180));}
+   rendered=true;
+   report('Cloudflare widget initialized. Waiting for verification…');
+   setTimeout(()=>{if(!completed&&!widget.querySelector('iframe'))report('Cloudflare initialized but no verification iframe appeared. Check domain/site key configuration.');},7000);
+  }catch(err){report('Render failed: '+String(err&&err.message||err).slice(0,150));}
  };
- if(window.turnstile){window.turnstile.ready(render);return;}
  const script=document.querySelector('script[src*="challenges.cloudflare.com/turnstile/v0/api.js"]');
- if(script){
-  script.addEventListener('load',()=>{if(window.turnstile)window.turnstile.ready(render);else report('Cloudflare script loaded but API missing.');},{once:true});
-  script.addEventListener('error',()=>report('Cloudflare security script blocked or failed to load.'),{once:true});
-  setTimeout(()=>{if(!window.turnstile)report('Cloudflare script unavailable after 8 seconds. Browser or network may be blocking it.');},8000);
- }else report('Cloudflare script tag missing.');
+ if(!script){report('Cloudflare script missing from page.');return;}
+ script.addEventListener('error',()=>report('Cloudflare script blocked or failed to load.'),{once:true});
+ const started=Date.now();
+ const poll=()=>{
+  if(!widget.isConnected||rendered)return;
+  if(window.turnstile&&typeof window.turnstile.render==='function'){render();return;}
+  if(Date.now()-started>12000){report('Cloudflare API not available after 12 seconds. Script may be blocked by browser, network, or an extension.');return;}
+  setTimeout(poll,350);
+ };
+ poll();
 }
 function wireTipline(){const form=$('#tipForm');if(!form)return;const input=$('#tipEvidence'),summary=$('#tipFiles'),result=$('#tipResult');input.addEventListener('change',()=>{const files=[...input.files];summary.textContent=files.length?files.map(f=>f.name+' ('+(f.size/1048576).toFixed(1)+' MB)').join(' · '):'No screenshots selected.';result.textContent=''});form.addEventListener('submit',async e=>{e.preventDefault();const d=new FormData(form),files=[...input.files],email=String(d.get('contact')||'').trim(),story=String(d.get('story')||'').trim(),league=String(d.get('league')||'').trim(),team=String(d.get('team')||'').trim();const errors=[];if(!String(d.get('cf-turnstile-response')||''))errors.push('Complete the security verification.');if(!league||league.length>120||!team||team.length>120||story.length<15||story.length>6000)errors.push('Enter a league, team and story (15–6000 characters).');if(email&&(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))errors.push('Enter a valid email address or leave it blank.');if(files.length>5||files.some(f=>f.size>10*1024*1024||!['image/png','image/jpeg','image/webp'].includes(f.type)))errors.push('Select up to five PNG, JPG or WebP files, each 10 MB or less.');if(errors.length){result.className='tip-result tip-error';result.textContent=errors.join(' ');return}const btn=form.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='DELIVERING TO THE NEWSROOM…';result.className='tip-result';result.textContent='Securely sending your report…';try{const response=await fetch(TIP_ENDPOINT,{method:'POST',body:d});let body={};try{body=await response.json()}catch{}if(!response.ok)throw Error(body.error||'Newsroom delivery failed. Please try again later.');result.textContent='REPORT RECEIVED. Your confidential case reference is '+body.case_id+'. Frank will review the evidence before anything is published.';form.reset();if(window.turnstile)window.turnstile.reset();summary.textContent='No screenshots selected.'}catch(err){result.className='tip-result tip-error';result.textContent='NOT SENT: '+err.message}finally{btn.disabled=false;btn.textContent='SEND REPORT TO THE NEWSROOM →';result.scrollIntoView({behavior:'smooth',block:'nearest'})}})}
 
