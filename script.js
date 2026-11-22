@@ -28,38 +28,26 @@ const TIP_ENDPOINT='https://nlckcelwfcoszbvqyeyr.supabase.co/functions/v1/tribun
 function initTiplineTurnstile(){
  const widget=document.querySelector('#tipForm .cf-turnstile');
  if(!widget)return;
- const note=document.createElement('p');
- note.id='tipCaptchaDiagnostic';
- note.setAttribute('role','status');
- note.style.cssText='font:600 13px/1.5 sans-serif;padding:10px;border:1px solid #8d7655;margin:8px 0;color:#4a2b18;background:#f8eacb';
- widget.insertAdjacentElement('afterend',note);
- const report=message=>{note.textContent='CAPTCHA TEST: '+message;};
+ const status=document.getElementById('tipResult');
  let rendered=false;
- let completed=false;
- report('Checking Cloudflare…');
  const render=()=>{
   if(rendered||!widget.isConnected||!window.turnstile)return;
   try{
-   const id=window.turnstile.render(widget,{sitekey:widget.dataset.sitekey,
-    callback:()=>{completed=true;report('Verification token received. CAPTCHA is working.');},
-    'error-callback':code=>report('Cloudflare error '+String(code||'unknown')+'. Send a screenshot.'),
-    'expired-callback':()=>{completed=false;report('Verification expired. Please retry.');},
-    'timeout-callback':()=>report('Cloudflare verification timed out.')
+   window.turnstile.render(widget,{sitekey:widget.dataset.sitekey,
+    'error-callback':()=>{if(status){status.className='tip-result tip-error';status.textContent='Security verification could not load. Refresh the page and try again.';}},
+    'expired-callback':()=>{if(status)status.textContent='Security verification expired. Please verify again.';}
    });
    rendered=true;
-   report('Cloudflare widget initialized. Waiting for verification…');
-   setTimeout(()=>{if(!completed&&!widget.querySelector('iframe'))report('Cloudflare initialized but no verification iframe appeared. Check domain/site key configuration.');},7000);
-  }catch(err){report('Render failed: '+String(err&&err.message||err).slice(0,150));}
+  }catch(err){console.warn('Turnstile rendering failed',err);}
  };
  const script=document.querySelector('script[src*="challenges.cloudflare.com/turnstile/v0/api.js"]');
- if(!script){report('Cloudflare script missing from page.');return;}
- script.addEventListener('error',()=>report('Cloudflare script blocked or failed to load.'),{once:true});
+ if(!script)return;
  const started=Date.now();
  const poll=()=>{
-  if(!widget.isConnected||rendered)return;
+  if(rendered||!widget.isConnected)return;
   if(window.turnstile&&typeof window.turnstile.render==='function'){render();return;}
-  if(Date.now()-started>12000){report('Cloudflare API not available after 12 seconds. Script may be blocked by browser, network, or an extension.');return;}
-  setTimeout(poll,350);
+  if(Date.now()-started<12000)setTimeout(poll,350);
+  else if(status){status.className='tip-result tip-error';status.textContent='Security verification unavailable. Refresh the page and try again.';}
  };
  poll();
 }
